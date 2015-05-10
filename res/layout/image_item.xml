@@ -12,7 +12,7 @@
         android:src="@android:drawable/toast_frame" />
 
     <ProgressBar
-        android:id="@+id/progress_seek"
+        android:id="@+id/download_progress"
         style="@style/Widget.AppCompat.ProgressBar.Horizontal"
         android:layout_width="0dp"
         android:layout_height="10dp"
@@ -20,7 +20,7 @@
         android:progress="10" />
 
     <TextView
-        android:id="@+id/progress_text"
+        android:id="@+id/download_progress_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="15KB/225KB" />
