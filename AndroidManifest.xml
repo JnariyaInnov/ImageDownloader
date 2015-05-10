@@ -25,6 +25,9 @@
         <service
             android:name=".service.DownloadService">
         </service>
+        <receiver
+            android:name="ProgressReceiver">
+        </receiver>
     </application>
 
 </manifest>

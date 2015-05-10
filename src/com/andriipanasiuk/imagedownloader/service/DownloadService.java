@@ -16,6 +16,10 @@ public class DownloadService extends Service {
 	private final IBinder binder = new DownloadInteractor();
 	private ExecutorService executor;
 
+	public static final String ACTION_DOWNLOAD_PROGRESS = "download_progress";
+	public static final String ACTION_DOWNLOAD_COMPLETE = "download_complete";
+	public static final String PROGRESS_KEY = "progress_key";
+
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		executor = Executors.newFixedThreadPool(5);
@@ -36,16 +40,23 @@ public class DownloadService extends Service {
 	}
 
 	public class DownloadInteractor extends Binder {
-		public void downloadImage(String url) {
+		public void downloadImage(final String url) {
 			executor.execute(new Runnable() {
 
 				@Override
 				public void run() {
-					try {
-						Thread.sleep(5000);
-					} catch (InterruptedException e) {
-						// do nothing
+					Intent intent = new Intent(ACTION_DOWNLOAD_PROGRESS);
+					for (int i = 0; i < 3; i++) {
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+							// do nothing
+						}
+						intent.putExtra(PROGRESS_KEY, i);
+						sendBroadcast(intent);
 					}
+					intent = new Intent(ACTION_DOWNLOAD_COMPLETE);
+					sendBroadcast(intent);
 				}
 			});
 		}
