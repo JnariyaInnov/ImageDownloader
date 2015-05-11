@@ -32,6 +32,10 @@
             android:text="@string/predefined_url" />
     </RelativeLayout>
 
-    <include layout="@layout/image_item" />
+    <ListView
+        android:id="@+id/image_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
+    </ListView>
 
 </LinearLayout>

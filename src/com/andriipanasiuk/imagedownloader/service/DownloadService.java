@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -22,10 +24,19 @@ import android.provider.MediaStore.Images;
 import android.util.Log;
 
 import com.andriipanasiuk.imagedownloader.MainActivity;
+import com.andriipanasiuk.imagedownloader.model.DownloadInfo;
 
 public class DownloadService extends Service {
 
-	private final IBinder binder = new DownloadInteractor();
+	private static interface DownloadListener {
+		void onProgress(int downloaded, int size);
+
+		void onComplete(String path);
+
+		void onError();
+	}
+
+	private final IBinder binder = new DownloadBinder();
 	private ExecutorService executor;
 
 	public static final String ACTION_DOWNLOAD_PROGRESS = "download_progress";
@@ -34,7 +45,10 @@ public class DownloadService extends Service {
 	public static final String IMAGE_PATH_KEY = "image_path_key";
 	public static final String PROGRESS_KEY = "progress_key";
 	public static final String DOWNLOADED_BYTES_KEY = "downloaded_bytes_key";
+	public static final String DOWNLOAD_ID_KEY = "downloaded_id_key";
 	public static final String ALL_BYTES_KEY = "all_bytes_key";
+
+	private List<DownloadInfo> downloads = new ArrayList<DownloadInfo>();
 
 	@Override
 	public void onCreate() {
@@ -58,14 +72,6 @@ public class DownloadService extends Service {
 	public boolean onUnbind(Intent intent) {
 		Log.d(MainActivity.LOG_TAG, "onUnbind");
 		return true;
-	}
-
-	private static interface DownloadListener {
-		void onProgress(int downloaded, int size);
-
-		void onComplete(String path);
-
-		void onError();
 	}
 
 	private String createNameForImage(String url) {
@@ -153,28 +159,43 @@ public class DownloadService extends Service {
 		}
 	}
 
-	public class DownloadInteractor extends Binder {
-		public void downloadImage(final String url, int id) {
-			executor.execute(new DownloadRunnable(url, new DownloadInfoSender()));
+	public class DownloadBinder extends Binder {
+		public DownloadService getService() {
+			return DownloadService.this;
 		}
+	}
+
+	public synchronized void downloadImage(String url) {
+		DownloadInfo info = new DownloadInfo();
+		info.url = url;
+		downloads.add(info);
+		executor.execute(new DownloadRunnable(url, new DownloadInfoSender(downloads.size() - 1)));
+	}
+
+	public List<DownloadInfo> getDownloads() {
+		return downloads;
 	}
 
 	private class DownloadInfoSender implements DownloadListener {
 		private final Intent progressIntent;
 		private long lastUpdate;
-		private static final long UPDATE_INTERVAL = 1000;
+		private int id;
+		private static final long UPDATE_INTERVAL = 400;
 
-		public DownloadInfoSender() {
+		public DownloadInfoSender(int id) {
 			progressIntent = new Intent(ACTION_DOWNLOAD_PROGRESS);
+			this.id = id;
 		}
 
 		@Override
 		public void onProgress(int downloaded, int size) {
 			if (System.currentTimeMillis() - lastUpdate > UPDATE_INTERVAL) {
+				DownloadInfo info = downloads.get(id);
 				int progress = downloaded * 100 / size;
-				progressIntent.putExtra(PROGRESS_KEY, progress);
-				progressIntent.putExtra(DOWNLOADED_BYTES_KEY, downloaded);
-				progressIntent.putExtra(ALL_BYTES_KEY, size);
+				info.progress = progress;
+				info.downloadedBytes = downloaded;
+				info.allBytes = size;
+				progressIntent.putExtra(DOWNLOAD_ID_KEY, id);
 				sendBroadcast(progressIntent);
 				lastUpdate = System.currentTimeMillis();
 			}
@@ -183,16 +204,19 @@ public class DownloadService extends Service {
 		@Override
 		public void onError() {
 			Intent errorIntent = new Intent(ACTION_DOWNLOAD_ERROR);
+			errorIntent.putExtra(DOWNLOAD_ID_KEY, id);
 			sendBroadcast(errorIntent);
 		}
 
 		@Override
 		public void onComplete(String path) {
+			DownloadInfo info = downloads.get(id);
+			info.isComplete = true;
+			info.url = path;
 			Intent completeIntent = new Intent(ACTION_DOWNLOAD_COMPLETE);
-			completeIntent.putExtra(IMAGE_PATH_KEY, path);
+			completeIntent.putExtra(DOWNLOAD_ID_KEY, id);
 			sendBroadcast(completeIntent);
 		}
-
 	}
 
 }
