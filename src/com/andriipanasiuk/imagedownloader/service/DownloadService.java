@@ -178,6 +178,7 @@ public class DownloadService extends Service {
 				if (stopped) {
 					return;
 				}
+				// TODO deal with NPE here
 				Bitmap scaledBitmap = resize(bitmap);
 				bitmap.recycle();
 				String path = saveToSD(scaledBitmap, info.url);

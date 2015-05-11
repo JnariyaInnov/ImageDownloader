@@ -29,6 +29,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 
 	public static final String LOG_TAG = "ImageDownloader";
 	private boolean bound = false;
+	private boolean serviceStopped = false;
 	private DownloadService downloadService;
 	private ProgressReceiver receiver;
 	private ListView imageListView;
@@ -36,7 +37,6 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 	private PreviewAdapter adapter;
 
 	private LruCache<String, Bitmap> memoryCache;
-
 
 	private final ServiceConnection downloadServiceConnection = new ServiceConnection() {
 
@@ -56,6 +56,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 			imageListView.setAdapter(adapter);
 		}
 	};
+
 	private class ProgressReceiver extends BroadcastReceiver {
 
 		@Override
@@ -76,18 +77,50 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 		}
 	}
 
+	private void stopService() {
+		downloadService.stopNow();
+		unbindService();
+		serviceStopped = true;
+	}
+
 	private void startService() {
 		Intent intent = new Intent(this, DownloadService.class);
 		startService(intent);
+		serviceStopped = false;
+	}
+
+	private void bindService() {
+		Intent intent = new Intent(this, DownloadService.class);
+		bindService(intent, downloadServiceConnection, Context.BIND_AUTO_CREATE);
+		receiver = new ProgressReceiver();
+		IntentFilter filter = new IntentFilter();
+		filter.addAction(DownloadService.ACTION_DOWNLOAD_PROGRESS);
+		filter.addAction(DownloadService.ACTION_DOWNLOAD_COMPLETE);
+		filter.addAction(DownloadService.ACTION_DOWNLOAD_ERROR);
+		filter.addAction(DownloadService.ACTION_DOWNLOAD_CANCELLED);
+		registerReceiver(receiver, filter);
+	}
+
+	private void unbindService() {
+		if (bound) {
+			unbindService(downloadServiceConnection);
+			bound = false;
+			unregisterReceiver(receiver);
+		}
 	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		startService();
+		if (savedInstanceState != null) {
+			serviceStopped = savedInstanceState.getBoolean("serviceStoppedKey");
+			Log.d(LOG_TAG, "onRestoreInstanceState " + serviceStopped);
+		}
+		if (!serviceStopped) {
+			startService();
+		}
 
-		RetainFragment retainFragment =
-				RetainFragment.findOrCreateRetainFragment(getFragmentManager());
+		RetainFragment retainFragment = RetainFragment.findOrCreateRetainFragment(getFragmentManager());
 		memoryCache = retainFragment.mRetainedCache;
 		if (memoryCache == null) {
 			memoryCache = new LruCache<String, Bitmap>(20);
@@ -99,39 +132,39 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 		downloadButton.setOnClickListener(this);
 		imageListView = (ListView) findViewById(R.id.image_list);
 		adapter = new PreviewAdapter(this, memoryCache);
-		disableUI();
+	}
 
+	@Override
+	protected void onSaveInstanceState(Bundle state) {
+		Log.d(LOG_TAG, "onSaveInstanceState " + serviceStopped);
+		state.putBoolean("serviceStoppedKey", serviceStopped);
 	}
 
 	@Override
 	public void onStart() {
 		super.onStart();
-		Intent intent = new Intent(this, DownloadService.class);
-		bindService(intent, downloadServiceConnection, Context.BIND_AUTO_CREATE);
-
-		receiver = new ProgressReceiver();
-		IntentFilter filter = new IntentFilter();
-		filter.addAction(DownloadService.ACTION_DOWNLOAD_PROGRESS);
-		filter.addAction(DownloadService.ACTION_DOWNLOAD_COMPLETE);
-		filter.addAction(DownloadService.ACTION_DOWNLOAD_ERROR);
-		filter.addAction(DownloadService.ACTION_DOWNLOAD_CANCELLED);
-		registerReceiver(receiver, filter);
+		if (!serviceStopped) {
+			bindService();
+		}
 	}
 
 	@Override
 	public void onStop() {
-		if (bound) {
-			unbindService(downloadServiceConnection);
-			bound = false;
+		if (!serviceStopped) {
+			unbindService();
 		}
-		unregisterReceiver(receiver);
 		super.onStop();
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		menu.add(R.string.stop_service);
-		menu.getItem(0).setChecked(true);
+		if (serviceStopped) {
+			menu.add(R.string.start_service);
+			menu.getItem(0).setChecked(false);
+		} else {
+			menu.add(R.string.stop_service);
+			menu.getItem(0).setChecked(true);
+		}
 		return true;
 	}
 
@@ -148,13 +181,14 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 		int order = item.getOrder();
 		if (order == 0) {
 			if (item.isChecked()) {
-				downloadService.stopNow();
+				stopService();
 				adapter.notifyDataSetChanged();
 				Toast.makeText(this, R.string.service_was_stopped, Toast.LENGTH_SHORT).show();
 				item.setChecked(false);
 				item.setTitle(R.string.start_service);
 			} else {
 				startService();
+				bindService();
 				item.setChecked(true);
 				item.setTitle(R.string.stop_service);
 			}
@@ -175,6 +209,8 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 				} else {
 					Toast.makeText(this, R.string.service_is_stopped, Toast.LENGTH_SHORT).show();
 				}
+			} else if (serviceStopped) {
+				Toast.makeText(this, R.string.service_is_stopped, Toast.LENGTH_SHORT).show();
 			} else {
 				Toast.makeText(this, R.string.service_is_starting, Toast.LENGTH_SHORT).show();
 			}
