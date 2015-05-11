@@ -4,7 +4,9 @@ import java.util.List;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.util.Log;
+import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,9 +24,11 @@ public class PreviewAdapter extends BaseAdapter {
 
 	private List<DownloadInfo> data;
 	private Context context;
+	private LruCache<String, Bitmap> memoryCache;
 
-	public PreviewAdapter(Context context) {
+	public PreviewAdapter(Context context, LruCache<String, Bitmap> memoryCache) {
 		this.context = context;
+		this.memoryCache = memoryCache;
 	}
 
 	@Override
@@ -86,7 +90,8 @@ public class PreviewAdapter extends BaseAdapter {
 			holder.progressBar.setVisibility(View.VISIBLE);
 			holder.progressText.setVisibility(View.VISIBLE);
 			holder.progressBar.setProgress(info.progress);
-			if(info.allBytes == 0){
+			holder.previewImage.setImageResource(android.R.color.darker_gray);
+			if (info.allBytes == 0) {
 				holder.progressText.setText("");
 			} else {
 				holder.progressText.setText(bytesToUIString(info.downloadedBytes) + "/"
@@ -94,19 +99,28 @@ public class PreviewAdapter extends BaseAdapter {
 			}
 		} else {
 			holder.stateText.setVisibility(View.VISIBLE);
-			if (info.state == State.CANCELLED) {
-				holder.stateText.setText("Cancelled");
-			} else if (info.state == State.COMPLETE) {
-				holder.stateText.setText("Complete");
-			} else if (info.state == State.ERROR) {
-				holder.stateText.setText("Error");
-			} else if (info.state == State.WAITING) {
-				holder.stateText.setText("Waiting");
-			}
 			holder.progressBar.setVisibility(View.GONE);
 			holder.progressText.setVisibility(View.GONE);
+			if (info.state == State.CANCELLED) {
+				holder.stateText.setText("Cancelled");
+				holder.previewImage.setImageResource(android.R.color.darker_gray);
+			} else if (info.state == State.COMPLETE) {
+				holder.stateText.setText("Complete");
+				Bitmap bitmap = memoryCache.get(info.path);
+				if (bitmap == null) {
+					holder.previewImage.setImageResource(android.R.color.darker_gray);
+					new ImageLoader(holder.previewImage, memoryCache).execute(info.path);
+				} else {
+					holder.previewImage.setImageBitmap(bitmap);
+				}
+			} else if (info.state == State.ERROR) {
+				holder.previewImage.setImageResource(android.R.color.darker_gray);
+				holder.stateText.setText("Error");
+			} else if (info.state == State.WAITING) {
+				holder.previewImage.setImageResource(android.R.color.darker_gray);
+				holder.stateText.setText("Waiting");
+			}
 		}
-		// TODO add image updating
 	}
 
 	private String bytesToUIString(int bytes) {

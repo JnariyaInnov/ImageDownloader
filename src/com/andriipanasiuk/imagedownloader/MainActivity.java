@@ -6,10 +6,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
+import android.util.LruCache;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -33,6 +35,9 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 	private Button downloadButton;
 	private PreviewAdapter adapter;
 
+	private LruCache<String, Bitmap> memoryCache;
+
+
 	private final ServiceConnection downloadServiceConnection = new ServiceConnection() {
 
 		@Override
@@ -51,7 +56,6 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 			imageListView.setAdapter(adapter);
 		}
 	};
-
 	private class ProgressReceiver extends BroadcastReceiver {
 
 		@Override
@@ -82,12 +86,21 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 		super.onCreate(savedInstanceState);
 		startService();
 
+		RetainFragment retainFragment =
+				RetainFragment.findOrCreateRetainFragment(getFragmentManager());
+		memoryCache = retainFragment.mRetainedCache;
+		if (memoryCache == null) {
+			memoryCache = new LruCache<String, Bitmap>(20);
+			retainFragment.mRetainedCache = memoryCache;
+		}
+
 		setContentView(R.layout.activity_main);
 		downloadButton = (Button) findViewById(R.id.download_button);
 		downloadButton.setOnClickListener(this);
 		imageListView = (ListView) findViewById(R.id.image_list);
-		adapter = new PreviewAdapter(this);
+		adapter = new PreviewAdapter(this, memoryCache);
 		disableUI();
+
 	}
 
 	@Override

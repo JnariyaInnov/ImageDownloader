@@ -182,6 +182,8 @@ public class DownloadService extends Service {
 				bitmap.recycle();
 				String path = saveToSD(scaledBitmap, info.url);
 				publishOnGallery(path, info.url);
+				info.state = State.COMPLETE;
+				info.path = path;
 				synchronized (stoppingLock) {
 					listener.onComplete(path);
 				}
@@ -262,8 +264,6 @@ public class DownloadService extends Service {
 
 		@Override
 		public void onComplete(String path) {
-			info.state = State.COMPLETE;
-			info.url = path;
 			Intent completeIntent = new Intent(ACTION_DOWNLOAD_COMPLETE);
 			completeIntent.putExtra(DOWNLOAD_ID_KEY, id);
 			sendBroadcast(completeIntent);
