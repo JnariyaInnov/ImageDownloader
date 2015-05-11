@@ -42,6 +42,7 @@ public class DownloadService extends Service {
 
 	private final IBinder binder = new DownloadBinder();
 	private ExecutorService executor;
+	private Object stoppingLock = new Object();
 
 	public static final String ACTION_DOWNLOAD_PROGRESS = "download_progress";
 	public static final String ACTION_DOWNLOAD_COMPLETE = "download_complete";
@@ -81,10 +82,12 @@ public class DownloadService extends Service {
 		return START_NOT_STICKY;
 	}
 
-	public void stopNow(){
+	public void stopNow() {
 		executor.shutdownNow();
-		downloads.clear();
-		stopped = true;
+		synchronized (stoppingLock) {
+			downloads.clear();
+			stopped = true;
+		}
 		stopSelf();
 	}
 
@@ -119,7 +122,9 @@ public class DownloadService extends Service {
 		while ((count = input.read(data)) != -1 && !stopped) {
 			outputStream.write(data, 0, count);
 			total += count;
-			listener.onProgress(total, fileSize);
+			synchronized (stoppingLock) {
+				listener.onProgress(total, fileSize);
+			}
 		}
 		Bitmap bitmap = null;
 		if (!stopped) {
@@ -171,16 +176,19 @@ public class DownloadService extends Service {
 				info.state = State.PROCESS;
 				Bitmap bitmap = downloadImageInternal(info.url, listener);
 				if (stopped) {
-					listener.onCancelled();
 					return;
 				}
 				Bitmap scaledBitmap = resize(bitmap);
 				bitmap.recycle();
 				String path = saveToSD(scaledBitmap, info.url);
 				publishOnGallery(path, info.url);
-				listener.onComplete(path);
+				synchronized (stoppingLock) {
+					listener.onComplete(path);
+				}
 			} catch (IOException e) {
-				listener.onError();
+				synchronized (stoppingLock) {
+					listener.onError();
+				}
 				Log.e(MainActivity.LOG_TAG, "Exception while image downloading", e);
 			}
 

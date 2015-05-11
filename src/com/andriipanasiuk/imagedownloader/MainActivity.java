@@ -56,6 +56,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 
 		@Override
 		public void onReceive(Context context, Intent intent) {
+			Log.d(LOG_TAG, "onReceive");
 			int position = intent.getIntExtra(DownloadService.DOWNLOAD_ID_KEY, -1);
 			if (intent.getAction().equals(DownloadService.ACTION_DOWNLOAD_PROGRESS)) {
 				adapter.updateItem(imageListView, position);
@@ -135,6 +136,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 		if (order == 0) {
 			if (item.isChecked()) {
 				downloadService.stopNow();
+				adapter.notifyDataSetChanged();
 				Toast.makeText(this, R.string.service_was_stopped, Toast.LENGTH_SHORT).show();
 				item.setChecked(false);
 				item.setTitle("Start service");

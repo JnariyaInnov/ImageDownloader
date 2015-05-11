@@ -115,7 +115,7 @@ public class PreviewAdapter extends BaseAdapter {
 			return kbytes + "KB";
 		}
 		int mbytes = kbytes / 1024;
-		return mbytes + "," + kbytes % 1024 + "MB";
+		return mbytes + "," + (kbytes % 1024) * 100 / 1024 + "MB";
 	}
 
 	private static class ViewHolder {
