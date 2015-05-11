@@ -16,6 +16,7 @@ import android.widget.TextView;
 
 import com.andriipanasiuk.imagedownloader.MainActivity;
 import com.andriipanasiuk.imagedownloader.R;
+import com.andriipanasiuk.imagedownloader.model.DownloadInfo.State;
 
 public class PreviewAdapter extends BaseAdapter {
 
@@ -41,7 +42,7 @@ public class PreviewAdapter extends BaseAdapter {
 		return position;
 	}
 
-	public void updateData(List<DownloadInfo> data){
+	public void updateData(List<DownloadInfo> data) {
 		this.data = data;
 		notifyDataSetChanged();
 	}
@@ -66,7 +67,7 @@ public class PreviewAdapter extends BaseAdapter {
 		if (convertView == null) {
 			convertView = LayoutInflater.from(context).inflate(R.layout.image_item, null);
 			holder = new ViewHolder();
-			holder.completeText = (TextView) convertView.findViewById(R.id.download_status_text);
+			holder.stateText = (TextView) convertView.findViewById(R.id.download_status_text);
 			holder.previewImage = (ImageView) convertView.findViewById(R.id.preview_image);
 			holder.progressBar = (ProgressBar) convertView.findViewById(R.id.download_progress);
 			holder.progressText = (TextView) convertView.findViewById(R.id.download_progress_text);
@@ -80,18 +81,31 @@ public class PreviewAdapter extends BaseAdapter {
 	}
 
 	private void updateItemInternal(ViewHolder holder, DownloadInfo info) {
-		if (info.isComplete){
-			holder.completeText.setVisibility(View.VISIBLE);
-			holder.completeText.setText("Complete");
-			holder.progressBar.setVisibility(View.GONE);
-			holder.progressText.setVisibility(View.GONE);
-		}else{
-			holder.completeText.setVisibility(View.GONE);
+		if (info.state == State.PROCESS) {
+			holder.stateText.setVisibility(View.GONE);
 			holder.progressBar.setVisibility(View.VISIBLE);
 			holder.progressText.setVisibility(View.VISIBLE);
+			holder.progressBar.setProgress(info.progress);
+			if(info.allBytes == 0){
+				holder.progressText.setText("");
+			} else {
+				holder.progressText.setText(bytesToUIString(info.downloadedBytes) + "/"
+						+ bytesToUIString(info.allBytes));
+			}
+		} else {
+			holder.stateText.setVisibility(View.VISIBLE);
+			if (info.state == State.CANCELLED) {
+				holder.stateText.setText("Cancelled");
+			} else if (info.state == State.COMPLETE) {
+				holder.stateText.setText("Complete");
+			} else if (info.state == State.ERROR) {
+				holder.stateText.setText("Error");
+			} else if (info.state == State.WAITING) {
+				holder.stateText.setText("Waiting");
+			}
+			holder.progressBar.setVisibility(View.GONE);
+			holder.progressText.setVisibility(View.GONE);
 		}
-		holder.progressBar.setProgress(info.progress);
-		holder.progressText.setText(bytesToUIString(info.downloadedBytes) + "/" + bytesToUIString(info.allBytes));
 		// TODO add image updating
 	}
 
@@ -108,6 +122,6 @@ public class PreviewAdapter extends BaseAdapter {
 		ImageView previewImage;
 		ProgressBar progressBar;
 		TextView progressText;
-		TextView completeText;
+		TextView stateText;
 	}
 }

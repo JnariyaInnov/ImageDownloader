@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,6 +26,7 @@ import android.util.Log;
 
 import com.andriipanasiuk.imagedownloader.MainActivity;
 import com.andriipanasiuk.imagedownloader.model.DownloadInfo;
+import com.andriipanasiuk.imagedownloader.model.DownloadInfo.State;
 
 public class DownloadService extends Service {
 
@@ -34,6 +36,8 @@ public class DownloadService extends Service {
 		void onComplete(String path);
 
 		void onError();
+
+		void onCancelled();
 	}
 
 	private final IBinder binder = new DownloadBinder();
@@ -41,6 +45,7 @@ public class DownloadService extends Service {
 
 	public static final String ACTION_DOWNLOAD_PROGRESS = "download_progress";
 	public static final String ACTION_DOWNLOAD_COMPLETE = "download_complete";
+	public static final String ACTION_DOWNLOAD_CANCELLED = "download_cancelled";
 	public static final String ACTION_DOWNLOAD_ERROR = "download_error";
 	public static final String IMAGE_PATH_KEY = "image_path_key";
 	public static final String PROGRESS_KEY = "progress_key";
@@ -48,18 +53,39 @@ public class DownloadService extends Service {
 	public static final String DOWNLOAD_ID_KEY = "downloaded_id_key";
 	public static final String ALL_BYTES_KEY = "all_bytes_key";
 
-	private List<DownloadInfo> downloads = new ArrayList<DownloadInfo>();
+	private List<DownloadInfo> downloads;
+	private boolean stopped = true;
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
+		downloads = new ArrayList<DownloadInfo>();
 		executor = Executors.newFixedThreadPool(5);
+		Log.d(MainActivity.LOG_TAG, "onCreate " + this);
+	}
+
+	@Override
+	public void onDestroy() {
+		Log.d(MainActivity.LOG_TAG, "onDestroy " + this);
+		executor.shutdownNow();
+		super.onDestroy();
 	}
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		Log.d(MainActivity.LOG_TAG, "onStartCommand");
+		Log.d(MainActivity.LOG_TAG, "onStartCommand " + this);
+		if (executor.isShutdown()) {
+			executor = Executors.newFixedThreadPool(5);
+		}
+		stopped = false;
 		return START_NOT_STICKY;
+	}
+
+	public void stopNow(){
+		executor.shutdownNow();
+		downloads.clear();
+		stopped = true;
+		stopSelf();
 	}
 
 	@Override
@@ -90,12 +116,15 @@ public class DownloadService extends Service {
 		byte data[] = new byte[1024];
 		int count = 0;
 		int total = 0;
-		while ((count = input.read(data)) != -1) {
+		while ((count = input.read(data)) != -1 && !stopped) {
 			outputStream.write(data, 0, count);
 			total += count;
 			listener.onProgress(total, fileSize);
 		}
-		Bitmap bitmap = BitmapFactory.decodeFile(cacheDownloadFile.getAbsolutePath());
+		Bitmap bitmap = null;
+		if (!stopped) {
+			bitmap = BitmapFactory.decodeFile(cacheDownloadFile.getAbsolutePath());
+		}
 		outputStream.flush();
 		outputStream.close();
 		cacheDownloadFile.delete();
@@ -133,17 +162,22 @@ public class DownloadService extends Service {
 	}
 
 	private class DownloadRunnable implements Runnable {
-		private final String url;
+		private final DownloadInfo info;
 		private final DownloadListener listener;
 
 		@Override
 		public void run() {
 			try {
-				Bitmap bitmap = downloadImageInternal(url, listener);
+				info.state = State.PROCESS;
+				Bitmap bitmap = downloadImageInternal(info.url, listener);
+				if (stopped) {
+					listener.onCancelled();
+					return;
+				}
 				Bitmap scaledBitmap = resize(bitmap);
 				bitmap.recycle();
-				String path = saveToSD(scaledBitmap, url);
-				publishOnGallery(path, url);
+				String path = saveToSD(scaledBitmap, info.url);
+				publishOnGallery(path, info.url);
 				listener.onComplete(path);
 			} catch (IOException e) {
 				listener.onError();
@@ -152,9 +186,9 @@ public class DownloadService extends Service {
 
 		}
 
-		public DownloadRunnable(String url, DownloadListener listener) {
+		public DownloadRunnable(DownloadInfo info, DownloadListener listener) {
 			super();
-			this.url = url;
+			this.info = info;
 			this.listener = listener;
 		}
 	}
@@ -165,32 +199,41 @@ public class DownloadService extends Service {
 		}
 	}
 
-	public synchronized void downloadImage(String url) {
+	public synchronized boolean downloadImage(String url) {
+		if (stopped) {
+			return false;
+		}
 		DownloadInfo info = new DownloadInfo();
 		info.url = url;
+		info.state = State.WAITING;
 		downloads.add(info);
-		executor.execute(new DownloadRunnable(url, new DownloadInfoSender(downloads.size() - 1)));
+		executor.execute(new DownloadRunnable(info, new DownloadInfoSender(info, downloads.size() - 1)));
+		return true;
 	}
 
 	public List<DownloadInfo> getDownloads() {
+		if (stopped) {
+			return Collections.emptyList();
+		}
 		return downloads;
 	}
 
 	private class DownloadInfoSender implements DownloadListener {
 		private final Intent progressIntent;
 		private long lastUpdate;
+		private DownloadInfo info;
 		private int id;
 		private static final long UPDATE_INTERVAL = 400;
 
-		public DownloadInfoSender(int id) {
+		public DownloadInfoSender(DownloadInfo info, int id) {
 			progressIntent = new Intent(ACTION_DOWNLOAD_PROGRESS);
+			this.info = info;
 			this.id = id;
 		}
 
 		@Override
 		public void onProgress(int downloaded, int size) {
 			if (System.currentTimeMillis() - lastUpdate > UPDATE_INTERVAL) {
-				DownloadInfo info = downloads.get(id);
 				int progress = downloaded * 100 / size;
 				info.progress = progress;
 				info.downloadedBytes = downloaded;
@@ -203,6 +246,7 @@ public class DownloadService extends Service {
 
 		@Override
 		public void onError() {
+			info.state = State.ERROR;
 			Intent errorIntent = new Intent(ACTION_DOWNLOAD_ERROR);
 			errorIntent.putExtra(DOWNLOAD_ID_KEY, id);
 			sendBroadcast(errorIntent);
@@ -210,12 +254,19 @@ public class DownloadService extends Service {
 
 		@Override
 		public void onComplete(String path) {
-			DownloadInfo info = downloads.get(id);
-			info.isComplete = true;
+			info.state = State.COMPLETE;
 			info.url = path;
 			Intent completeIntent = new Intent(ACTION_DOWNLOAD_COMPLETE);
 			completeIntent.putExtra(DOWNLOAD_ID_KEY, id);
 			sendBroadcast(completeIntent);
+		}
+
+		@Override
+		public void onCancelled() {
+			info.state = State.CANCELLED;
+			Intent cancelledIntent = new Intent(ACTION_DOWNLOAD_CANCELLED);
+			cancelledIntent.putExtra(DOWNLOAD_ID_KEY, id);
+			sendBroadcast(cancelledIntent);
 		}
 	}
 

@@ -65,15 +65,21 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 			} else if (intent.getAction().equals(DownloadService.ACTION_DOWNLOAD_ERROR)) {
 				adapter.updateItem(imageListView, position);
 				Toast.makeText(MainActivity.this, "Error while downloading", Toast.LENGTH_SHORT).show();
+			} else if (intent.getAction().equals(DownloadService.ACTION_DOWNLOAD_CANCELLED)) {
+				adapter.notifyDataSetChanged();
 			}
 		}
+	}
+
+	private void startService() {
+		Intent intent = new Intent(this, DownloadService.class);
+		startService(intent);
 	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		Intent intent = new Intent(this, DownloadService.class);
-		startService(intent);
+		startService();
 
 		setContentView(R.layout.activity_main);
 		downloadButton = (Button) findViewById(R.id.download_button);
@@ -94,6 +100,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 		filter.addAction(DownloadService.ACTION_DOWNLOAD_PROGRESS);
 		filter.addAction(DownloadService.ACTION_DOWNLOAD_COMPLETE);
 		filter.addAction(DownloadService.ACTION_DOWNLOAD_ERROR);
+		filter.addAction(DownloadService.ACTION_DOWNLOAD_CANCELLED);
 		registerReceiver(receiver, filter);
 	}
 
@@ -109,8 +116,8 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		// TODO add changing text on button
 		menu.add("Stop service");
+		menu.getItem(0).setChecked(true);
 		return true;
 	}
 
@@ -123,10 +130,19 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 	}
 
 	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
+	public boolean onOptionsItemSelected(final MenuItem item) {
 		int order = item.getOrder();
 		if (order == 0) {
-			// TODO add stopping the service
+			if (item.isChecked()) {
+				downloadService.stopNow();
+				Toast.makeText(this, R.string.service_was_stopped, Toast.LENGTH_SHORT).show();
+				item.setChecked(false);
+				item.setTitle("Start service");
+			} else {
+				startService();
+				item.setChecked(true);
+				item.setTitle("Stop service");
+			}
 			Log.d(LOG_TAG, "Click on start/stop service");
 			return true;
 		}
@@ -135,9 +151,18 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
 
 	@Override
 	public void onClick(View v) {
-		if (v.getId() == R.id.download_button && bound) {
-			downloadService.downloadImage(((EditText) findViewById(R.id.download_url)).getText().toString());
-			adapter.updateData(downloadService.getDownloads());
+		if (v.getId() == R.id.download_button) {
+			if (bound) {
+				String url = ((EditText) findViewById(R.id.download_url)).getText().toString();
+				boolean result = downloadService.downloadImage(url);
+				if (result) {
+					adapter.updateData(downloadService.getDownloads());
+				} else {
+					Toast.makeText(this, R.string.service_is_stopped, Toast.LENGTH_SHORT).show();
+				}
+			} else {
+				Toast.makeText(this, R.string.service_is_starting, Toast.LENGTH_SHORT).show();
+			}
 		}
 	}
 }

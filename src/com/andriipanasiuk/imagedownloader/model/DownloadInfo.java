@@ -5,6 +5,10 @@ public class DownloadInfo {
 	public int progress;
 	public int downloadedBytes;
 	public int allBytes;
-	public boolean isComplete;
 	public long id;
+	public State state;
+
+	public static enum State {
+		WAITING, PROCESS, COMPLETE, CANCELLED, ERROR
+	}
 }
