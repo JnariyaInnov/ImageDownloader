@@ -9,28 +9,29 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.andriipanasiuk.imagedownloader.MainActivity" >
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal" >
+        android:layout_height="wrap_content" >
 
         <Button
             android:id="@+id/download_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="right"
-            android:text="Download image" />
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:text="Download" />
 
         <EditText
             android:id="@+id/download_url"
-            android:layout_width="0dp"
-            android:singleLine="true"
-            android:text="@string/predefined_url"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="left"
-            android:layout_weight="1" />
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:layout_toLeftOf="@id/download_button"
+            android:singleLine="true"
+            android:text="@string/predefined_url" />
+    </RelativeLayout>
 
-    </LinearLayout>
+    <include layout="@layout/image_item" />
 
-    <include layout="@layout/image_item"/>
 </LinearLayout>

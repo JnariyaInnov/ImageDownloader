@@ -10,8 +10,6 @@ import java.net.URLConnection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.http.util.ByteArrayBuffer;
-
 import android.app.Service;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -74,18 +72,22 @@ public class DownloadService extends Service {
 		URLConnection connection = url.openConnection();
 		connection.connect();
 		int fileSize = connection.getContentLength();
-		Log.d(MainActivity.LOG_TAG, "Length: " + fileSize);
+		Log.d(MainActivity.LOG_TAG, "Image size in bytes: " + fileSize);
 		InputStream input = new BufferedInputStream(url.openStream());
-		ByteArrayBuffer buffer = new ByteArrayBuffer(fileSize);
+		File cacheDownloadFile = new File(getCacheDir(), createNameForImage(urlString));
+		FileOutputStream outputStream = new FileOutputStream(cacheDownloadFile);
 		byte data[] = new byte[1024];
 		int count = 0;
 		int total = 0;
 		while ((count = input.read(data)) != -1) {
-			buffer.append(data, 0, count);
+			outputStream.write(data, 0, count);
 			total += count;
 			listener.onProgress((int) (total * 100 / fileSize), total, fileSize);
 		}
-		Bitmap bitmap = BitmapFactory.decodeByteArray(buffer.buffer(), 0, buffer.buffer().length);
+		Bitmap bitmap = BitmapFactory.decodeFile(cacheDownloadFile.getAbsolutePath());
+		outputStream.flush();
+		outputStream.close();
+		cacheDownloadFile.delete();
 		input.close();
 		return bitmap;
 	}
@@ -96,15 +98,16 @@ public class DownloadService extends Service {
 	}
 
 	private String saveToSD(Bitmap bitmap, String title) throws IOException {
-		File albumDirectory = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/ImageDownloader");
+		File albumDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+				"ImageDownloader");
 		if (!albumDirectory.exists()) {
 			albumDirectory.mkdirs();
 		}
-		String path = albumDirectory.getAbsolutePath() + "/" + createNameForImage(title);
-		Log.d(MainActivity.LOG_TAG, "Path: " + path);
-		FileOutputStream stream = new FileOutputStream(new File(path));
+		File savedImage = new File(albumDirectory, createNameForImage(title));
+		Log.d(MainActivity.LOG_TAG, "Path: " + savedImage.getAbsolutePath());
+		FileOutputStream stream = new FileOutputStream(savedImage);
 		bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-		return path;
+		return savedImage.getAbsolutePath();
 	}
 
 	private void publishOnGallery(String path, String title) throws IOException {
@@ -127,6 +130,7 @@ public class DownloadService extends Service {
 			try {
 				Bitmap bitmap = DownloadService.this.downloadImageInternal(url, listener);
 				Bitmap scaledBitmap = resize(bitmap);
+				bitmap.recycle();
 				String path = saveToSD(scaledBitmap, url);
 				publishOnGallery(path, url);
 				listener.onComplete(path);
