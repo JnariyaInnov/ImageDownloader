@@ -37,8 +37,13 @@ public class DownloadService extends Service {
 	public static final String ALL_BYTES_KEY = "all_bytes_key";
 
 	@Override
-	public int onStartCommand(Intent intent, int flags, int startId) {
+	public void onCreate() {
+		super.onCreate();
 		executor = Executors.newFixedThreadPool(5);
+	}
+
+	@Override
+	public int onStartCommand(Intent intent, int flags, int startId) {
 		Log.d(MainActivity.LOG_TAG, "onStartCommand");
 		return START_NOT_STICKY;
 	}
@@ -56,7 +61,7 @@ public class DownloadService extends Service {
 	}
 
 	private static interface DownloadListener {
-		void onProgress(int progress, int downloaded, int size);
+		void onProgress(int downloaded, int size);
 
 		void onComplete(String path);
 
@@ -82,7 +87,7 @@ public class DownloadService extends Service {
 		while ((count = input.read(data)) != -1) {
 			outputStream.write(data, 0, count);
 			total += count;
-			listener.onProgress((int) (total * 100 / fileSize), total, fileSize);
+			listener.onProgress(total, fileSize);
 		}
 		Bitmap bitmap = BitmapFactory.decodeFile(cacheDownloadFile.getAbsolutePath());
 		outputStream.flush();
@@ -128,7 +133,7 @@ public class DownloadService extends Service {
 		@Override
 		public void run() {
 			try {
-				Bitmap bitmap = DownloadService.this.downloadImageInternal(url, listener);
+				Bitmap bitmap = downloadImageInternal(url, listener);
 				Bitmap scaledBitmap = resize(bitmap);
 				bitmap.recycle();
 				String path = saveToSD(scaledBitmap, url);
@@ -150,31 +155,44 @@ public class DownloadService extends Service {
 
 	public class DownloadInteractor extends Binder {
 		public void downloadImage(final String url, int id) {
-			final Intent progressIntent = new Intent(ACTION_DOWNLOAD_PROGRESS);
-			executor.execute(new DownloadRunnable(url, new DownloadListener() {
-
-				@Override
-				public void onProgress(int progress, int downloaded, int size) {
-					progressIntent.putExtra(PROGRESS_KEY, progress);
-					progressIntent.putExtra(DOWNLOADED_BYTES_KEY, downloaded);
-					progressIntent.putExtra(ALL_BYTES_KEY, size);
-					sendBroadcast(progressIntent);
-				}
-
-				@Override
-				public void onError() {
-					Intent errorIntent = new Intent(ACTION_DOWNLOAD_ERROR);
-					sendBroadcast(errorIntent);
-				}
-
-				@Override
-				public void onComplete(String path) {
-					Intent completeIntent = new Intent(ACTION_DOWNLOAD_COMPLETE);
-					completeIntent.putExtra(IMAGE_PATH_KEY, path);
-					sendBroadcast(completeIntent);
-				}
-			}));
+			executor.execute(new DownloadRunnable(url, new DownloadInfoSender()));
 		}
+	}
+
+	private class DownloadInfoSender implements DownloadListener {
+		private final Intent progressIntent;
+		private long lastUpdate;
+		private static final long UPDATE_INTERVAL = 1000;
+
+		public DownloadInfoSender() {
+			progressIntent = new Intent(ACTION_DOWNLOAD_PROGRESS);
+		}
+
+		@Override
+		public void onProgress(int downloaded, int size) {
+			if (System.currentTimeMillis() - lastUpdate > UPDATE_INTERVAL) {
+				int progress = downloaded * 100 / size;
+				progressIntent.putExtra(PROGRESS_KEY, progress);
+				progressIntent.putExtra(DOWNLOADED_BYTES_KEY, downloaded);
+				progressIntent.putExtra(ALL_BYTES_KEY, size);
+				sendBroadcast(progressIntent);
+				lastUpdate = System.currentTimeMillis();
+			}
+		}
+
+		@Override
+		public void onError() {
+			Intent errorIntent = new Intent(ACTION_DOWNLOAD_ERROR);
+			sendBroadcast(errorIntent);
+		}
+
+		@Override
+		public void onComplete(String path) {
+			Intent completeIntent = new Intent(ACTION_DOWNLOAD_COMPLETE);
+			completeIntent.putExtra(IMAGE_PATH_KEY, path);
+			sendBroadcast(completeIntent);
+		}
+
 	}
 
 }
