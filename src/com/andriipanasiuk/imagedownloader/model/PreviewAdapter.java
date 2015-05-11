@@ -102,10 +102,10 @@ public class PreviewAdapter extends BaseAdapter {
 			holder.progressBar.setVisibility(View.GONE);
 			holder.progressText.setVisibility(View.GONE);
 			if (info.state == State.CANCELLED) {
-				holder.stateText.setText("Cancelled");
+				holder.stateText.setText(R.string.cancelled);
 				holder.previewImage.setImageResource(android.R.color.darker_gray);
 			} else if (info.state == State.COMPLETE) {
-				holder.stateText.setText("Complete");
+				holder.stateText.setText(R.string.complete);
 				Bitmap bitmap = memoryCache.get(info.path);
 				if (bitmap == null) {
 					holder.previewImage.setImageResource(android.R.color.darker_gray);
@@ -115,10 +115,10 @@ public class PreviewAdapter extends BaseAdapter {
 				}
 			} else if (info.state == State.ERROR) {
 				holder.previewImage.setImageResource(android.R.color.darker_gray);
-				holder.stateText.setText("Error");
+				holder.stateText.setText(R.string.error);
 			} else if (info.state == State.WAITING) {
 				holder.previewImage.setImageResource(android.R.color.darker_gray);
-				holder.stateText.setText("Waiting");
+				holder.stateText.setText(R.string.waiting);
 			}
 		}
 	}

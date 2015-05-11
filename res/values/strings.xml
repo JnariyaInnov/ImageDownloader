@@ -9,5 +9,13 @@
     <string name="service_was_stopped">Service was stopped. All downloads have been cancelled.</string>
     <string name="service_is_stopped">Service is stopped. Start it first</string>
     <string name="service_is_starting">Service is starting. Wait please</string>
+    <string name="cancelled">Cancelled</string>
+    <string name="complete">Complete</string>
+    <string name="error">Error</string>
+    <string name="waiting">Waiting</string>
+    <string name="download_complete">Download complete</string>
+    <string name="error_while_downloading">Error while downloading</string>
+    <string name="start_service">Start service</string>
+    <string name="stop_service">Stop service</string>
 
 </resources>
