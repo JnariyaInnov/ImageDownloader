@@ -34,8 +34,7 @@ public class MainActivity extends ServiceActivity implements OnClickListener, Se
 	private EditText urlEditText;
 	private PreviewAdapter adapter;
 
-	private static final String[] IMAGE_URLS = new String[] {
-			"http://www.tsquirrel.com/_data/photos/2014/11/1287__nasa_after-a-keen-searched-of-nasa-pictures-hd-wallpapers-inn-.jpg",
+	private static final String[] IMAGE_URLS = new String[] { "http://edmullen.net/test/rc.jpg",
 			"http://www.midiboutique.com/image/data/android-app-button.png",
 			"https://thenypost.files.wordpress.com/2013/12/nasa-selfie.jpg",
 			"https://reblogsocial.files.wordpress.com/2013/09/iiakkisefme9w1.jpg" };
@@ -122,7 +121,7 @@ public class MainActivity extends ServiceActivity implements OnClickListener, Se
 		setContentView(R.layout.activity_main);
 		downloadButton = (Button) findViewById(R.id.download_button);
 		urlEditText = (EditText) findViewById(R.id.download_url);
-		urlEditText.setText(IMAGE_URLS[1]);
+		urlEditText.setText(IMAGE_URLS[0]);
 		downloadButton.setOnClickListener(this);
 		imageListView = (ListView) findViewById(R.id.image_list);
 		adapter = new PreviewAdapter(this, memoryCache);

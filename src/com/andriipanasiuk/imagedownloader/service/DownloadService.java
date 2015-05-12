@@ -15,7 +15,6 @@ import android.app.Service;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Binder;
 import android.os.Environment;
 import android.os.IBinder;
@@ -133,7 +132,7 @@ public class DownloadService extends Service {
 		return System.currentTimeMillis() + "_" + url.replaceAll("/", "_");
 	}
 
-	private Bitmap downloadImageInternal(String urlString, DownloadListener listener) throws IOException {
+	private File downloadImageInternal(String urlString, DownloadListener listener) throws IOException {
 		URL url = new URL(urlString);
 		URLConnection connection = url.openConnection();
 		connection.connect();
@@ -152,33 +151,17 @@ public class DownloadService extends Service {
 				listener.onProgress(total, fileSize);
 			}
 		}
-		Bitmap bitmap = null;
-		if (state != State.STOPPED) {
-			bitmap = BitmapFactory.decodeFile(cacheDownloadFile.getAbsolutePath());
-		} else {
-			listener.onCancelled();
-		}
 		outputStream.flush();
 		outputStream.close();
-		cacheDownloadFile.delete();
 		input.close();
-		return bitmap;
-	}
-
-	private Bitmap resize(Bitmap original) {
-		int width = original.getWidth();
-		int height = original.getHeight();
-		double ratio = (double) width / height;
-		int scaledWidth, scaledHeight;
-		if (ratio > 1) {
-			scaledWidth = WIDTH;
-			scaledHeight = (int) (scaledWidth / ratio);
+		if (state != State.STOPPED) {
+			Log.d(MainActivity.LOG_TAG, cacheDownloadFile.getAbsolutePath());
+			return cacheDownloadFile;
 		} else {
-			scaledHeight = HEIGHT;
-			scaledWidth = (int) (scaledHeight * ratio);
+			listener.onCancelled();
+			cacheDownloadFile.delete();
+			return null;
 		}
-		Bitmap scaledBitmap = Bitmap.createScaledBitmap(original, scaledWidth, scaledHeight, false);
-		return scaledBitmap;
 	}
 
 	private String saveToSD(Bitmap bitmap, String title) throws IOException {
@@ -188,7 +171,7 @@ public class DownloadService extends Service {
 			albumDirectory.mkdirs();
 		}
 		File savedImage = new File(albumDirectory, createNameForImage(title));
-		Log.d(MainActivity.LOG_TAG, "Path: " + savedImage.getAbsolutePath());
+		Log.d(MainActivity.LOG_TAG, "Saved path: " + savedImage.getAbsolutePath());
 		FileOutputStream stream = new FileOutputStream(savedImage);
 		bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
 		return savedImage.getAbsolutePath();
@@ -213,14 +196,16 @@ public class DownloadService extends Service {
 		public void run() {
 			try {
 				info.state = DownloadInfo.State.PROCESS;
-				Bitmap bitmap = downloadImageInternal(info.url, listener);
-				if (state == State.STOPPED) {
+
+				File originalImageFile = downloadImageInternal(info.url, listener);
+				if (state == State.STOPPED || originalImageFile == null) {
 					return;
 				}
-				Bitmap scaledBitmap = resize(bitmap);
-				bitmap.recycle();
+				Bitmap scaledBitmap = ImageUtil.createScaled(originalImageFile, WIDTH, HEIGHT);
+				originalImageFile.delete();
 				String path = saveToSD(scaledBitmap, info.url);
 				publishOnGallery(path, info.url);
+
 				info.state = DownloadInfo.State.COMPLETE;
 				info.path = path;
 				synchronized (stoppingLock) {
@@ -286,7 +271,7 @@ public class DownloadService extends Service {
 		info.url = url;
 		info.state = DownloadInfo.State.WAITING;
 		int id = DB.getInstance().addDownload(info);
-		executor.execute(new StubDownloadRunnable(info, new DownloadInfoSender(info, id)));
+		executor.execute(new DownloadRunnable(info, new DownloadInfoSender(info, id)));
 		return true;
 	}
 
