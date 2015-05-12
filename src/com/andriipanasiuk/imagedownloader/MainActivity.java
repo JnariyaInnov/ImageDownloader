@@ -55,16 +55,20 @@ public class MainActivity extends ServiceActivity implements OnClickListener, Se
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			Log.d(LOG_TAG, "onReceive");
+			if (isServiceStopped()) {
+				return;
+			}
 			int position = intent.getIntExtra(DownloadService.DOWNLOAD_ID_KEY, -1);
-			if (intent.getAction().equals(DownloadService.ACTION_DOWNLOAD_PROGRESS)) {
+			String action = intent.getAction();
+			if (action.equals(DownloadService.ACTION_DOWNLOAD_PROGRESS)) {
 				adapter.updateItem(imageListView, position);
-			} else if (intent.getAction().equals(DownloadService.ACTION_DOWNLOAD_COMPLETE)) {
+			} else if (action.equals(DownloadService.ACTION_DOWNLOAD_COMPLETE)) {
 				adapter.updateItem(imageListView, position);
 				Toast.makeText(MainActivity.this, R.string.download_complete, Toast.LENGTH_SHORT).show();
-			} else if (intent.getAction().equals(DownloadService.ACTION_DOWNLOAD_ERROR)) {
+			} else if (action.equals(DownloadService.ACTION_DOWNLOAD_ERROR)) {
 				adapter.updateItem(imageListView, position);
 				Toast.makeText(MainActivity.this, R.string.error_while_downloading, Toast.LENGTH_SHORT).show();
-			} else if (intent.getAction().equals(DownloadService.ACTION_DOWNLOAD_CANCELLED)) {
+			} else if (action.equals(DownloadService.ACTION_DOWNLOAD_CANCELLED)) {
 				adapter.notifyDataSetChanged();
 			}
 		}
