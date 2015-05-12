@@ -7,11 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import android.app.Service;
 import android.content.ContentValues;
@@ -25,8 +23,8 @@ import android.provider.MediaStore.Images;
 import android.util.Log;
 
 import com.andriipanasiuk.imagedownloader.MainActivity;
+import com.andriipanasiuk.imagedownloader.model.DB;
 import com.andriipanasiuk.imagedownloader.model.DownloadInfo;
-import com.andriipanasiuk.imagedownloader.model.DownloadInfo.State;
 
 public class DownloadService extends Service {
 
@@ -57,13 +55,15 @@ public class DownloadService extends Service {
 	public static final String DOWNLOAD_ID_KEY = "downloaded_id_key";
 	public static final String ALL_BYTES_KEY = "all_bytes_key";
 
-	private List<DownloadInfo> downloads;
-	private boolean stopped = true;
+	private State state = State.STOPPED;
+
+	public static enum State {
+		RUNNING, STOPPING, STOPPED
+	}
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		downloads = new ArrayList<DownloadInfo>();
 		executor = Executors.newFixedThreadPool(5);
 		Log.d(MainActivity.LOG_TAG, "onCreate " + this);
 	}
@@ -81,17 +81,40 @@ public class DownloadService extends Service {
 		if (executor.isShutdown()) {
 			executor = Executors.newFixedThreadPool(5);
 		}
-		stopped = false;
+		state = State.RUNNING;
 		return START_NOT_STICKY;
 	}
 
+	/**
+	 * Stop service immediately. All unfinished downloads will be interrupted.
+	 */
 	public void stopNow() {
 		executor.shutdownNow();
 		synchronized (stoppingLock) {
-			downloads.clear();
-			stopped = true;
+			state = State.STOPPED;
 		}
 		stopSelf();
+	}
+
+	/**
+	 * Stop service after unfinished downloads will be done.
+	 */
+	public void stop() {
+		state = State.STOPPING;
+		executor.shutdown();
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+				} catch (InterruptedException e) {
+					// do nothing
+				}
+				stopSelf();
+				state = State.STOPPED;
+			}
+		}).start();
 	}
 
 	@Override
@@ -122,7 +145,7 @@ public class DownloadService extends Service {
 		byte data[] = new byte[1024];
 		int count = 0;
 		int total = 0;
-		while ((count = input.read(data)) != -1 && !stopped) {
+		while ((count = input.read(data)) != -1 && state != State.STOPPED) {
 			outputStream.write(data, 0, count);
 			total += count;
 			synchronized (stoppingLock) {
@@ -130,8 +153,10 @@ public class DownloadService extends Service {
 			}
 		}
 		Bitmap bitmap = null;
-		if (!stopped) {
+		if (state != State.STOPPED) {
 			bitmap = BitmapFactory.decodeFile(cacheDownloadFile.getAbsolutePath());
+		} else {
+			listener.onCancelled();
 		}
 		outputStream.flush();
 		outputStream.close();
@@ -143,7 +168,7 @@ public class DownloadService extends Service {
 	private Bitmap resize(Bitmap original) {
 		int width = original.getWidth();
 		int height = original.getHeight();
-		double ratio = (double)width/height;
+		double ratio = (double) width / height;
 		int scaledWidth, scaledHeight;
 		if (ratio > 1) {
 			scaledWidth = WIDTH;
@@ -187,17 +212,16 @@ public class DownloadService extends Service {
 		@Override
 		public void run() {
 			try {
-				info.state = State.PROCESS;
+				info.state = DownloadInfo.State.PROCESS;
 				Bitmap bitmap = downloadImageInternal(info.url, listener);
-				if (stopped) {
+				if (state == State.STOPPED) {
 					return;
 				}
-				// TODO deal with NPE here
 				Bitmap scaledBitmap = resize(bitmap);
 				bitmap.recycle();
 				String path = saveToSD(scaledBitmap, info.url);
 				publishOnGallery(path, info.url);
-				info.state = State.COMPLETE;
+				info.state = DownloadInfo.State.COMPLETE;
 				info.path = path;
 				synchronized (stoppingLock) {
 					listener.onComplete(path);
@@ -218,6 +242,36 @@ public class DownloadService extends Service {
 		}
 	}
 
+	private class StubDownloadRunnable implements Runnable {
+		private final DownloadInfo info;
+		private final DownloadListener listener;
+
+		@Override
+		public void run() {
+			try {
+				info.state = DownloadInfo.State.PROCESS;
+				for (int i = 0; i < 5; i++) {
+					Thread.sleep(1000);
+					listener.onProgress(1000 * (i + 1), 1000 * 5);
+				}
+				if (state == State.STOPPED) {
+					return;
+				}
+				info.state = DownloadInfo.State.COMPLETE;
+				synchronized (stoppingLock) {
+					listener.onComplete("");
+				}
+			} catch (InterruptedException e) {
+				// do nothing
+			}
+		}
+
+		public StubDownloadRunnable(DownloadInfo info, DownloadListener listener) {
+			this.info = info;
+			this.listener = listener;
+		}
+	}
+
 	public class DownloadBinder extends Binder {
 		public DownloadService getService() {
 			return DownloadService.this;
@@ -225,22 +279,15 @@ public class DownloadService extends Service {
 	}
 
 	public synchronized boolean downloadImage(String url) {
-		if (stopped) {
+		if (state != State.RUNNING) {
 			return false;
 		}
 		DownloadInfo info = new DownloadInfo();
 		info.url = url;
-		info.state = State.WAITING;
-		downloads.add(info);
-		executor.execute(new DownloadRunnable(info, new DownloadInfoSender(info, downloads.size() - 1)));
+		info.state = DownloadInfo.State.WAITING;
+		int id = DB.getInstance().addDownload(info);
+		executor.execute(new StubDownloadRunnable(info, new DownloadInfoSender(info, id)));
 		return true;
-	}
-
-	public List<DownloadInfo> getDownloads() {
-		if (stopped) {
-			return Collections.emptyList();
-		}
-		return downloads;
 	}
 
 	private class DownloadInfoSender implements DownloadListener {
@@ -271,7 +318,7 @@ public class DownloadService extends Service {
 
 		@Override
 		public void onError() {
-			info.state = State.ERROR;
+			info.state = DownloadInfo.State.ERROR;
 			Intent errorIntent = new Intent(ACTION_DOWNLOAD_ERROR);
 			errorIntent.putExtra(DOWNLOAD_ID_KEY, id);
 			sendBroadcast(errorIntent);
@@ -286,7 +333,8 @@ public class DownloadService extends Service {
 
 		@Override
 		public void onCancelled() {
-			info.state = State.CANCELLED;
+			Log.d(MainActivity.LOG_TAG, "onCancelled");
+			info.state = DownloadInfo.State.CANCELLED;
 			Intent cancelledIntent = new Intent(ACTION_DOWNLOAD_CANCELLED);
 			cancelledIntent.putExtra(DOWNLOAD_ID_KEY, id);
 			sendBroadcast(cancelledIntent);

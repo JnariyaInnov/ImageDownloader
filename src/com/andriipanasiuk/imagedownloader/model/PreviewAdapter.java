@@ -48,6 +48,7 @@ public class PreviewAdapter extends BaseAdapter {
 
 	public void updateData(List<DownloadInfo> data) {
 		this.data = data;
+		Log.d(MainActivity.LOG_TAG, "updateData " + data.size());
 		notifyDataSetChanged();
 	}
 

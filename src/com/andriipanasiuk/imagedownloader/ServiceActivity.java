@@ -12,8 +12,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
-import com.andriipanasiuk.imagedownloader.service.DownloadService;
-
 /**
  * Base activity that handles posibility of service starting/stopping and all
  * the work concerning it. Also shows menu with this option.
@@ -66,6 +64,7 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 		if (!serviceStopped) {
 			bindServiceInternal();
 		}
+		registerReceiver();
 	}
 
 	@Override
@@ -73,6 +72,7 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 		if (!serviceStopped) {
 			unbindService();
 		}
+		unregisterReceiver();
 		super.onStop();
 	}
 
@@ -89,16 +89,14 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 	}
 
 	protected void bindServiceInternal() {
-		Intent intent = new Intent(this, DownloadService.class);
+		Intent intent = new Intent(this, getServiceClass());
 		bindService(intent, this, Context.BIND_AUTO_CREATE);
-		registerReceiver();
 	}
 
 	protected void unbindService() {
 		if (bound) {
 			unbindService(this);
 			bound = false;
-			unregisterReceiver();
 		}
 	}
 

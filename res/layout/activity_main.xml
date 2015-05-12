@@ -28,8 +28,7 @@
             android:layout_alignParentLeft="true"
             android:layout_centerVertical="true"
             android:layout_toLeftOf="@id/download_button"
-            android:singleLine="true"
-            android:text="@string/predefined_url" />
+            android:singleLine="true" />
     </RelativeLayout>
 
     <ListView
