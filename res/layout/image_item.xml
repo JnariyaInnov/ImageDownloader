@@ -22,6 +22,7 @@
 
     <TextView
         android:layout_marginLeft="5dp"
+        android:textColor="#365ecf"
         android:id="@+id/download_progress_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"/>
@@ -33,7 +34,7 @@
         android:layout_height="wrap_content"
         android:visibility="gone"
         android:layout_gravity="center"
-        android:textColor="@android:color/widget_edittext_dark"
+        android:textColor="#365ecf"
         android:text="Complete" />
 
 </LinearLayout>
