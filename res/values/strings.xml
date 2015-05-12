@@ -15,5 +15,7 @@
     <string name="error_while_downloading">Error while downloading</string>
     <string name="start_service">Start service</string>
     <string name="stop_service">Stop service</string>
+    <string name="once_more_back">Press once more to stop the service. Otherwise - we exit.</string>
+    <string name="service_will_be_stopped">Service will be stopped after downloads will have been finished.</string>
 
 </resources>

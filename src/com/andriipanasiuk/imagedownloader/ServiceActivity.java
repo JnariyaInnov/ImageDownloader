@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
@@ -111,7 +112,7 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 		int order = item.getOrder();
 		if (order == 0) {
 			if (item.isChecked()) {
-				stopServiceInternal();
+				stopServiceInternal(true);
 				Toast.makeText(this, R.string.service_was_stopped, Toast.LENGTH_SHORT).show();
 				item.setChecked(false);
 				item.setTitle(R.string.start_service);
@@ -126,18 +127,43 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 		return super.onOptionsItemSelected(item);
 	}
 
-	protected abstract void stopService();
+	protected abstract void stopService(boolean immediately);
 
-	private void stopServiceInternal() {
-		stopService();
+	private void stopServiceInternal(boolean immediately) {
+		stopService(immediately);
 		unbindService();
 		serviceStopped = true;
 	}
 
-	protected void startService() {
+	private void startService() {
 		Intent intent = new Intent(this, getServiceClass());
 		startService(intent);
 		serviceStopped = false;
 	}
 
+	private boolean waitForBack = false;
+	private Handler backButtonHandler = new Handler();
+	private Runnable closeRunnable = new Runnable() {
+
+		@Override
+		public void run() {
+			waitForBack = false;
+			ServiceActivity.super.onBackPressed();
+		}
+	};
+
+	@Override
+	public void onBackPressed() {
+		if (waitForBack) {
+			backButtonHandler.removeCallbacks(closeRunnable);
+			stopServiceInternal(false);
+			Toast.makeText(this, R.string.service_will_be_stopped, Toast.LENGTH_SHORT).show();
+			invalidateOptionsMenu();
+			waitForBack = false;
+			return;
+		}
+		Toast.makeText(this, R.string.once_more_back, Toast.LENGTH_SHORT).show();
+		waitForBack = true;
+		backButtonHandler.postDelayed(closeRunnable, 500);
+	}
 }
