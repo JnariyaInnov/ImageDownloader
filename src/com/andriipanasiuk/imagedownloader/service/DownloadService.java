@@ -30,6 +30,9 @@ import com.andriipanasiuk.imagedownloader.model.DownloadInfo.State;
 
 public class DownloadService extends Service {
 
+	private static final int HEIGHT = 480;
+	private static final int WIDTH = 320;
+
 	private static interface DownloadListener {
 		void onProgress(int downloaded, int size);
 
@@ -138,7 +141,18 @@ public class DownloadService extends Service {
 	}
 
 	private Bitmap resize(Bitmap original) {
-		Bitmap scaledBitmap = Bitmap.createScaledBitmap(original, 320, 480, false);
+		int width = original.getWidth();
+		int height = original.getHeight();
+		double ratio = (double)width/height;
+		int scaledWidth, scaledHeight;
+		if (ratio > 1) {
+			scaledWidth = WIDTH;
+			scaledHeight = (int) (scaledWidth / ratio);
+		} else {
+			scaledHeight = HEIGHT;
+			scaledWidth = (int) (scaledHeight * ratio);
+		}
+		Bitmap scaledBitmap = Bitmap.createScaledBitmap(original, scaledWidth, scaledHeight, false);
 		return scaledBitmap;
 	}
 
