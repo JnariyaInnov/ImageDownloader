@@ -84,12 +84,14 @@ public class PreviewAdapter extends BaseAdapter {
 	}
 
 	private void updateItemInternal(ViewHolder holder, DownloadInfo info) {
+		if (info.state != State.COMPLETE) {
+			holder.previewImage.setImageResource(android.R.color.darker_gray);
+		}
 		if (info.state == State.PROCESS) {
 			holder.stateText.setVisibility(View.GONE);
 			holder.progressBar.setVisibility(View.VISIBLE);
 			holder.progressText.setVisibility(View.VISIBLE);
 			holder.progressBar.setProgress(info.progress);
-			holder.previewImage.setImageResource(android.R.color.darker_gray);
 			if (info.allBytes == 0) {
 				holder.progressText.setText("");
 			} else {
@@ -102,16 +104,13 @@ public class PreviewAdapter extends BaseAdapter {
 			holder.progressText.setVisibility(View.GONE);
 			if (info.state == State.CANCELLED) {
 				holder.stateText.setText(R.string.cancelled);
-				holder.previewImage.setImageResource(android.R.color.darker_gray);
 			} else if (info.state == State.COMPLETE) {
 				holder.stateText.setText(R.string.complete);
-				Picasso.with(context).load(new File(info.path)).fit().centerInside().placeholder(android.R.color.darker_gray)
-						.into(holder.previewImage);
+				Picasso.with(context).load(new File(info.path)).fit().centerInside()
+						.placeholder(android.R.color.darker_gray).into(holder.previewImage);
 			} else if (info.state == State.ERROR) {
-				holder.previewImage.setImageResource(android.R.color.darker_gray);
 				holder.stateText.setText(R.string.error);
 			} else if (info.state == State.WAITING) {
-				holder.previewImage.setImageResource(android.R.color.darker_gray);
 				holder.stateText.setText(R.string.waiting);
 			}
 		}
