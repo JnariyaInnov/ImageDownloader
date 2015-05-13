@@ -1,5 +1,9 @@
 package com.andriipanasiuk.imagedownloader;
 
+import org.androidannotations.annotations.Click;
+import org.androidannotations.annotations.EActivity;
+import org.androidannotations.annotations.ViewById;
+
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -13,7 +17,6 @@ import android.os.IBinder;
 import android.util.Log;
 import android.util.LruCache;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
@@ -24,14 +27,18 @@ import com.andriipanasiuk.imagedownloader.model.PreviewAdapter;
 import com.andriipanasiuk.imagedownloader.service.DownloadService;
 import com.andriipanasiuk.imagedownloader.service.DownloadService.DownloadBinder;
 
-public class MainActivity extends ServiceActivity implements OnClickListener, ServiceConnection {
+@EActivity
+public class MainActivity extends ServiceActivity implements ServiceConnection {
 
 	public static final String LOG_TAG = "ImageDownloader";
 	private DownloadService downloadService;
 	private ProgressReceiver receiver;
-	private ListView imageListView;
-	private Button downloadButton;
-	private EditText urlEditText;
+	@ViewById(R.id.image_list)
+	ListView imageListView;
+	@ViewById(R.id.download_button)
+	Button downloadButton;
+	@ViewById(R.id.download_url)
+	EditText urlEditText;
 	private PreviewAdapter adapter;
 
 	private static final String[] IMAGE_URLS = new String[] { "http://edmullen.net/test/rc.jpg",
@@ -119,11 +126,7 @@ public class MainActivity extends ServiceActivity implements OnClickListener, Se
 		}
 
 		setContentView(R.layout.activity_main);
-		downloadButton = (Button) findViewById(R.id.download_button);
-		urlEditText = (EditText) findViewById(R.id.download_url);
 		urlEditText.setText(IMAGE_URLS[0]);
-		downloadButton.setOnClickListener(this);
-		imageListView = (ListView) findViewById(R.id.image_list);
 		adapter = new PreviewAdapter(this, memoryCache);
 		adapter.updateData(DB.getInstance().getDownloads());
 		imageListView.setAdapter(adapter);
@@ -137,22 +140,20 @@ public class MainActivity extends ServiceActivity implements OnClickListener, Se
 		downloadButton.setEnabled(true);
 	}
 
-	@Override
-	public void onClick(View v) {
-		if (v.getId() == R.id.download_button) {
-			if (isServiceBound()) {
-				String url = urlEditText.getText().toString();
-				boolean result = downloadService.downloadImage(url);
-				if (result) {
-					adapter.notifyDataSetChanged();
-				} else {
-					Toast.makeText(this, R.string.service_is_stopped, Toast.LENGTH_SHORT).show();
-				}
-			} else if (isServiceStopped()) {
-				Toast.makeText(this, R.string.service_is_stopped, Toast.LENGTH_SHORT).show();
+	@Click(R.id.download_button)
+	void onDownloadClick(View v) {
+		if (isServiceBound()) {
+			String url = urlEditText.getText().toString();
+			boolean result = downloadService.downloadImage(url);
+			if (result) {
+				adapter.notifyDataSetChanged();
 			} else {
-				Toast.makeText(this, R.string.service_is_starting, Toast.LENGTH_SHORT).show();
+				Toast.makeText(this, R.string.service_is_stopped, Toast.LENGTH_SHORT).show();
 			}
+		} else if (isServiceStopped()) {
+			Toast.makeText(this, R.string.service_is_stopped, Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(this, R.string.service_is_starting, Toast.LENGTH_SHORT).show();
 		}
 	}
 
