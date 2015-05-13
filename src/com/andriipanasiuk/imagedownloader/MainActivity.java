@@ -1,6 +1,7 @@
 package com.andriipanasiuk.imagedownloader;
 
 import org.androidannotations.annotations.AfterViews;
+import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.Receiver;
@@ -35,7 +36,8 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 	Button downloadButton;
 	@ViewById(R.id.download_url)
 	EditText urlEditText;
-	private PreviewAdapter adapter;
+	@Bean
+	PreviewAdapter adapter;
 
 	private static final String[] IMAGE_URLS = new String[] { "http://edmullen.net/test/rc.jpg",
 			"http://www.midiboutique.com/image/data/android-app-button.png",
@@ -102,7 +104,6 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 	@AfterViews
 	void init() {
 		urlEditText.setText(IMAGE_URLS[1]);
-		adapter = new PreviewAdapter(this);
 		adapter.updateData(DB.getInstance().getDownloads());
 		imageListView.setAdapter(adapter);
 	}

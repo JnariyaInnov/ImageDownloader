@@ -1,29 +1,25 @@
 private package com.andriipanasiuk.imagedownloader.model;
 
-import java.io.File;
 import java.util.List;
 
-import android.annotation.SuppressLint;
+import org.androidannotations.annotations.EBean;
+import org.androidannotations.annotations.RootContext;
+
 import android.content.Context;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 
 import com.andriipanasiuk.imagedownloader.MainActivity;
-import com.andriipanasiuk.imagedownloader.R;
-import com.andriipanasiuk.imagedownloader.model.DownloadInfo.State;
-import com.squareup.picasso.Picasso;
 
+@EBean
 public class PreviewAdapter extends BaseAdapter {
 
 	private List<DownloadInfo> data;
-	private Context context;
+	@RootContext
+	Context context;
 
 	public PreviewAdapter(Context context) {
 		this.context = context;
@@ -55,80 +51,20 @@ public class PreviewAdapter extends BaseAdapter {
 		int last = listView.getLastVisiblePosition();
 		DownloadInfo info = getItem(position);
 		Log.d(MainActivity.LOG_TAG, first + " " + last + " " + position + " " + info.progress);
-		if (position < first || position > last) {
-		} else {
+		if (position >= first && position <= last) {
 			View convertView = listView.getChildAt(position - first);
-			ViewHolder holder = (ViewHolder) convertView.getTag();
-			updateItemInternal(holder, info);
+			((PreviewItem) convertView).updateItem(info);
 		}
 	}
 
-	@SuppressLint("InflateParams")
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent) {
-		ViewHolder holder;
 		if (convertView == null) {
-			convertView = LayoutInflater.from(context).inflate(R.layout.image_item, null);
-			holder = new ViewHolder();
-			holder.stateText = (TextView) convertView.findViewById(R.id.download_status_text);
-			holder.previewImage = (ImageView) convertView.findViewById(R.id.preview_image);
-			holder.progressBar = (ProgressBar) convertView.findViewById(R.id.download_progress);
-			holder.progressText = (TextView) convertView.findViewById(R.id.download_progress_text);
-			convertView.setTag(holder);
-		} else {
-			holder = (ViewHolder) convertView.getTag();
+			convertView = PreviewItem_.build(context);
 		}
 		DownloadInfo info = getItem(position);
-		updateItemInternal(holder, info);
+		((PreviewItem) convertView).updateItem(info);
 		return convertView;
 	}
 
-	private void updateItemInternal(ViewHolder holder, DownloadInfo info) {
-		if (info.state != State.COMPLETE) {
-			holder.previewImage.setImageResource(android.R.color.darker_gray);
-		}
-		if (info.state == State.PROCESS) {
-			holder.stateText.setVisibility(View.GONE);
-			holder.progressBar.setVisibility(View.VISIBLE);
-			holder.progressText.setVisibility(View.VISIBLE);
-			holder.progressBar.setProgress(info.progress);
-			if (info.allBytes == 0) {
-				holder.progressText.setText("");
-			} else {
-				holder.progressText.setText(bytesToUIString(info.downloadedBytes) + "/"
-						+ bytesToUIString(info.allBytes));
-			}
-		} else {
-			holder.stateText.setVisibility(View.VISIBLE);
-			holder.progressBar.setVisibility(View.GONE);
-			holder.progressText.setVisibility(View.GONE);
-			if (info.state == State.CANCELLED) {
-				holder.stateText.setText(R.string.cancelled);
-			} else if (info.state == State.COMPLETE) {
-				holder.stateText.setText(R.string.complete);
-				Picasso.with(context).load(new File(info.path)).fit().centerInside()
-						.placeholder(android.R.color.darker_gray).into(holder.previewImage);
-			} else if (info.state == State.ERROR) {
-				holder.stateText.setText(R.string.error);
-			} else if (info.state == State.WAITING) {
-				holder.stateText.setText(R.string.waiting);
-			}
-		}
-	}
-
-	private String bytesToUIString(int bytes) {
-		int kbytes = bytes / 1024;
-		if (kbytes < 1024) {
-			return kbytes + "KB";
-		}
-		int mbytes = kbytes / 1024;
-		return mbytes + "," + (kbytes % 1024) * 100 / 1024 + "MB";
-	}
-
-	private static class ViewHolder {
-		ImageView previewImage;
-		ProgressBar progressBar;
-		TextView progressText;
-		TextView stateText;
-	}
 }
