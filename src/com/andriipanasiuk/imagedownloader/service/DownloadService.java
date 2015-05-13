@@ -227,6 +227,7 @@ public class DownloadService extends Service {
 		}
 	}
 
+	@SuppressWarnings("unused")
 	private class StubDownloadRunnable implements Runnable {
 		private final DownloadInfo info;
 		private final DownloadListener listener;

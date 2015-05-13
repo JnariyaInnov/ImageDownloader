@@ -9,11 +9,9 @@ import org.androidannotations.annotations.ViewById;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.ServiceConnection;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
-import android.util.LruCache;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -43,7 +41,6 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 			"http://www.midiboutique.com/image/data/android-app-button.png",
 			"https://thenypost.files.wordpress.com/2013/12/nasa-selfie.jpg",
 			"https://reblogsocial.files.wordpress.com/2013/09/iiakkisefme9w1.jpg" };
-	private LruCache<String, Bitmap> memoryCache;
 
 	@Override
 	public void onServiceDisconnected(ComponentName name) {
