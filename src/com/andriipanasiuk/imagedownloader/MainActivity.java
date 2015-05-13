@@ -1,5 +1,6 @@
 package com.andriipanasiuk.imagedownloader;
 
+import org.androidannotations.annotations.AfterViews;
 import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.Receiver;
@@ -23,8 +24,9 @@ import com.andriipanasiuk.imagedownloader.model.DB;
 import com.andriipanasiuk.imagedownloader.model.PreviewAdapter;
 import com.andriipanasiuk.imagedownloader.service.DownloadService;
 import com.andriipanasiuk.imagedownloader.service.DownloadService.DownloadBinder;
+import com.squareup.picasso.Picasso;
 
-@EActivity
+@EActivity(value = R.layout.activity_main)
 public class MainActivity extends ServiceActivity implements ServiceConnection {
 
 	public static final String LOG_TAG = "ImageDownloader";
@@ -96,22 +98,14 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-		RetainFragment retainFragment = RetainFragment.findOrCreateRetainFragment(getFragmentManager());
-		memoryCache = retainFragment.mRetainedCache;
-		if (memoryCache == null) {
-			int cacheSize = 4 * 1024 * 1024; // 4MiB
-			memoryCache = new LruCache<String, Bitmap>(cacheSize) {
-				protected int sizeOf(String key, Bitmap value) {
-					return value.getByteCount();
+		Picasso.with(this).setLoggingEnabled(true);
 
-				}
-			};
-			retainFragment.mRetainedCache = memoryCache;
-		}
+	}
 
-		setContentView(R.layout.activity_main);
-		urlEditText.setText(IMAGE_URLS[0]);
-		adapter = new PreviewAdapter(this, memoryCache);
+	@AfterViews
+	void init() {
+		urlEditText.setText(IMAGE_URLS[1]);
+		adapter = new PreviewAdapter(this);
 		adapter.updateData(DB.getInstance().getDownloads());
 		imageListView.setAdapter(adapter);
 	}

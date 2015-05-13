@@ -1,12 +1,11 @@
 private package com.andriipanasiuk.imagedownloader.model;
 
+import java.io.File;
 import java.util.List;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.util.Log;
-import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,16 +18,15 @@ import android.widget.TextView;
 import com.andriipanasiuk.imagedownloader.MainActivity;
 import com.andriipanasiuk.imagedownloader.R;
 import com.andriipanasiuk.imagedownloader.model.DownloadInfo.State;
+import com.squareup.picasso.Picasso;
 
 public class PreviewAdapter extends BaseAdapter {
 
 	private List<DownloadInfo> data;
 	private Context context;
-	private LruCache<String, Bitmap> memoryCache;
 
-	public PreviewAdapter(Context context, LruCache<String, Bitmap> memoryCache) {
+	public PreviewAdapter(Context context) {
 		this.context = context;
-		this.memoryCache = memoryCache;
 	}
 
 	@Override
@@ -107,13 +105,8 @@ public class PreviewAdapter extends BaseAdapter {
 				holder.previewImage.setImageResource(android.R.color.darker_gray);
 			} else if (info.state == State.COMPLETE) {
 				holder.stateText.setText(R.string.complete);
-				Bitmap bitmap = memoryCache.get(info.path);
-				if (bitmap == null) {
-					holder.previewImage.setImageResource(android.R.color.darker_gray);
-					new ImageLoader(holder.previewImage, memoryCache).execute(info.path);
-				} else {
-					holder.previewImage.setImageBitmap(bitmap);
-				}
+				Picasso.with(context).load(new File(info.path)).fit().centerInside().placeholder(android.R.color.darker_gray)
+						.into(holder.previewImage);
 			} else if (info.state == State.ERROR) {
 				holder.previewImage.setImageResource(android.R.color.darker_gray);
 				holder.stateText.setText(R.string.error);

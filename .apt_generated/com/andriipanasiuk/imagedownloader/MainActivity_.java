@@ -22,6 +22,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import com.andriipanasiuk.imagedownloader.R.id;
+import com.andriipanasiuk.imagedownloader.R.layout;
 import org.androidannotations.api.SdkVersionHelper;
 import org.androidannotations.api.builder.ActivityIntentBuilder;
 import org.androidannotations.api.view.HasViews;
@@ -48,6 +49,16 @@ public final class MainActivity_
     }
     ;
     private final IntentFilter intentFilter2_ = new IntentFilter();
+    private final BroadcastReceiver onDownloadCancelledReceiver_ = new BroadcastReceiver() {
+
+
+        public void onReceive(Context context, Intent intent) {
+            MainActivity_.this.onDownloadCancelled();
+        }
+
+    }
+    ;
+    private final IntentFilter intentFilter3_ = new IntentFilter();
     private final BroadcastReceiver onDownloadCompleteReceiver_ = new BroadcastReceiver() {
 
         public final static String DOWNLOADED_ID_KEY_EXTRA = "downloaded_id_key";
@@ -56,16 +67,6 @@ public final class MainActivity_
             Bundle extras_ = ((intent.getExtras()!= null)?intent.getExtras():new Bundle());
             int position = extras_.getInt(DOWNLOADED_ID_KEY_EXTRA);
             MainActivity_.this.onDownloadComplete(position);
-        }
-
-    }
-    ;
-    private final IntentFilter intentFilter3_ = new IntentFilter();
-    private final BroadcastReceiver onDownloadCancelledReceiver_ = new BroadcastReceiver() {
-
-
-        public void onReceive(Context context, Intent intent) {
-            MainActivity_.this.onDownloadCancelled();
         }
 
     }
@@ -90,16 +91,17 @@ public final class MainActivity_
         init_(savedInstanceState);
         super.onCreate(savedInstanceState);
         OnViewChangedNotifier.replaceNotifier(previousNotifier);
+        setContentView(layout.activity_main);
     }
 
     private void init_(Bundle savedInstanceState) {
         OnViewChangedNotifier.registerOnViewChangedListener(this);
         intentFilter1_.addAction("download_error");
         this.registerReceiver(onDownloadErrorReceiver_, intentFilter1_);
-        intentFilter2_.addAction("download_complete");
-        this.registerReceiver(onDownloadCompleteReceiver_, intentFilter2_);
-        intentFilter3_.addAction("download_cancelled");
-        this.registerReceiver(onDownloadCancelledReceiver_, intentFilter3_);
+        intentFilter2_.addAction("download_cancelled");
+        this.registerReceiver(onDownloadCancelledReceiver_, intentFilter2_);
+        intentFilter3_.addAction("download_complete");
+        this.registerReceiver(onDownloadCompleteReceiver_, intentFilter3_);
         intentFilter4_.addAction("download_progress");
         this.registerReceiver(onDownloadProgressReceiver_, intentFilter4_);
     }
@@ -140,8 +142,8 @@ public final class MainActivity_
 
     @Override
     public void onViewChanged(HasViews hasViews) {
-        imageListView = ((ListView) hasViews.findViewById(id.image_list));
         urlEditText = ((EditText) hasViews.findViewById(id.download_url));
+        imageListView = ((ListView) hasViews.findViewById(id.image_list));
         downloadButton = ((Button) hasViews.findViewById(id.download_button));
         if (downloadButton!= null) {
             downloadButton.setOnClickListener(new OnClickListener() {
@@ -155,13 +157,14 @@ public final class MainActivity_
             }
             );
         }
+        init();
     }
 
     @Override
     public void onDestroy() {
         this.unregisterReceiver(onDownloadErrorReceiver_);
-        this.unregisterReceiver(onDownloadCompleteReceiver_);
         this.unregisterReceiver(onDownloadCancelledReceiver_);
+        this.unregisterReceiver(onDownloadCompleteReceiver_);
         this.unregisterReceiver(onDownloadProgressReceiver_);
         super.onDestroy();
     }
