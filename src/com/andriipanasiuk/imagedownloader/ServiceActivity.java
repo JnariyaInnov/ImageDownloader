@@ -65,7 +65,6 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 		if (!serviceStopped) {
 			bindServiceInternal();
 		}
-		registerReceiver();
 	}
 
 	@Override
@@ -73,7 +72,6 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 		if (!serviceStopped) {
 			unbindService();
 		}
-		unregisterReceiver();
 		super.onStop();
 	}
 
@@ -100,10 +98,6 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 			bound = false;
 		}
 	}
-
-	protected abstract void registerReceiver();
-
-	protected abstract void unregisterReceiver();
 
 	protected abstract Class<? extends Service> getServiceClass();
 

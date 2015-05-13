@@ -2,14 +2,11 @@ package com.andriipanasiuk.imagedownloader;
 
 import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
+import org.androidannotations.annotations.Receiver;
 import org.androidannotations.annotations.ViewById;
 
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.os.Bundle;
@@ -32,7 +29,6 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 
 	public static final String LOG_TAG = "ImageDownloader";
 	private DownloadService downloadService;
-	private ProgressReceiver receiver;
 	@ViewById(R.id.image_list)
 	ListView imageListView;
 	@ViewById(R.id.download_button)
@@ -61,42 +57,30 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 		enableUI();
 	}
 
-	private class ProgressReceiver extends BroadcastReceiver {
+	@Receiver(actions = DownloadService.ACTION_DOWNLOAD_PROGRESS)
+	void onDownloadProgress(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) int position) {
+		adapter.updateItem(imageListView, position);
+	}
 
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			int position = intent.getIntExtra(DownloadService.DOWNLOAD_ID_KEY, -1);
-			String action = intent.getAction();
-			if (action.equals(DownloadService.ACTION_DOWNLOAD_PROGRESS)) {
-				adapter.updateItem(imageListView, position);
-			} else if (action.equals(DownloadService.ACTION_DOWNLOAD_COMPLETE)) {
-				adapter.updateItem(imageListView, position);
-				Toast.makeText(MainActivity.this, R.string.download_complete, Toast.LENGTH_SHORT).show();
-			} else if (action.equals(DownloadService.ACTION_DOWNLOAD_ERROR)) {
-				adapter.updateItem(imageListView, position);
-				Toast.makeText(MainActivity.this, R.string.error_while_downloading, Toast.LENGTH_SHORT).show();
-			} else if (action.equals(DownloadService.ACTION_DOWNLOAD_CANCELLED)) {
-				adapter.notifyDataSetChanged();
-			}
-		}
+	@Receiver(actions = DownloadService.ACTION_DOWNLOAD_COMPLETE)
+	void onDownloadComplete(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) int position) {
+		adapter.updateItem(imageListView, position);
+		Toast.makeText(MainActivity.this, R.string.download_complete, Toast.LENGTH_SHORT).show();
+	}
+
+	@Receiver(actions = DownloadService.ACTION_DOWNLOAD_ERROR)
+	void onDownloadError(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) int position) {
+		adapter.updateItem(imageListView, position);
+		Toast.makeText(MainActivity.this, R.string.error_while_downloading, Toast.LENGTH_SHORT).show();
+	}
+
+	@Receiver(actions = DownloadService.ACTION_DOWNLOAD_CANCELLED)
+	void onDownloadCancelled() {
+		adapter.notifyDataSetChanged();
 	}
 
 	protected Class<? extends Service> getServiceClass() {
 		return DownloadService.class;
-	}
-
-	protected void registerReceiver() {
-		receiver = new ProgressReceiver();
-		IntentFilter filter = new IntentFilter();
-		filter.addAction(DownloadService.ACTION_DOWNLOAD_PROGRESS);
-		filter.addAction(DownloadService.ACTION_DOWNLOAD_COMPLETE);
-		filter.addAction(DownloadService.ACTION_DOWNLOAD_ERROR);
-		filter.addAction(DownloadService.ACTION_DOWNLOAD_CANCELLED);
-		registerReceiver(receiver, filter);
-	}
-
-	protected void unregisterReceiver() {
-		unregisterReceiver(receiver);
 	}
 
 	@Override
