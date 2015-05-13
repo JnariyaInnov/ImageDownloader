@@ -96,6 +96,7 @@ public final class MainActivity_
 
     private void init_(Bundle savedInstanceState) {
         OnViewChangedNotifier.registerOnViewChangedListener(this);
+        restoreSavedInstanceState_(savedInstanceState);
         intentFilter1_.addAction("download_error");
         this.registerReceiver(onDownloadErrorReceiver_, intentFilter1_);
         intentFilter2_.addAction("download_cancelled");
@@ -158,6 +159,19 @@ public final class MainActivity_
             );
         }
         init();
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle bundle_) {
+        super.onSaveInstanceState(bundle_);
+        bundle_.putBoolean("serviceStopped", serviceStopped);
+    }
+
+    private void restoreSavedInstanceState_(Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            return ;
+        }
+        serviceStopped = savedInstanceState.getBoolean("serviceStopped");
     }
 
     @Override

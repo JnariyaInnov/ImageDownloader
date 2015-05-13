@@ -1,5 +1,8 @@
 package com.andriipanasiuk.imagedownloader;
 
+import org.androidannotations.annotations.EActivity;
+import org.androidannotations.annotations.InstanceState;
+
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -20,10 +23,12 @@ import android.widget.Toast;
  * @author andriipanasiuk
  * 
  */
+@EActivity
 public abstract class ServiceActivity extends ActionBarActivity implements ServiceConnection {
 
 	private boolean bound = false;
-	private boolean serviceStopped = false;
+	@InstanceState
+	boolean serviceStopped = false;
 
 	protected boolean isServiceBound() {
 		return bound;
@@ -46,17 +51,9 @@ public abstract class ServiceActivity extends ActionBarActivity implements Servi
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		if (savedInstanceState != null) {
-			serviceStopped = savedInstanceState.getBoolean("serviceStoppedKey");
-		}
 		if (!serviceStopped) {
 			startService();
 		}
-	}
-
-	@Override
-	protected void onSaveInstanceState(Bundle state) {
-		state.putBoolean("serviceStoppedKey", serviceStopped);
 	}
 
 	@Override
