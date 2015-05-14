@@ -69,10 +69,10 @@ public final class PreviewItem_
 
     @Override
     public void onViewChanged(HasViews hasViews) {
+        stateText = ((TextView) hasViews.findViewById(id.download_status_text));
         previewImage = ((ImageView) hasViews.findViewById(id.preview_image));
         progressText = ((TextView) hasViews.findViewById(id.download_progress_text));
         progressBar = ((ProgressBar) hasViews.findViewById(id.download_progress));
-        stateText = ((TextView) hasViews.findViewById(id.download_status_text));
     }
 
 }

@@ -5,7 +5,9 @@ import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.Receiver;
+import org.androidannotations.annotations.Receiver.RegisterAt;
 import org.androidannotations.annotations.ViewById;
+import org.droidparts.annotation.inject.InjectDependency;
 
 import android.app.Service;
 import android.content.ComponentName;
@@ -19,10 +21,11 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
-import com.andriipanasiuk.imagedownloader.model.DB;
+import com.andriipanasiuk.imagedownloader.model.DownloadInfoManager;
 import com.andriipanasiuk.imagedownloader.model.PreviewAdapter;
 import com.andriipanasiuk.imagedownloader.service.DownloadService;
 import com.andriipanasiuk.imagedownloader.service.DownloadService.DownloadBinder;
+import com.andriipanasiuk.imagedownloader.service.DownloadService_;
 import com.squareup.picasso.Picasso;
 
 @EActivity(value = R.layout.activity_main)
@@ -38,6 +41,8 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 	EditText urlEditText;
 	@Bean
 	PreviewAdapter adapter;
+	@InjectDependency
+	DownloadInfoManager dao;
 
 	private static final String[] IMAGE_URLS = new String[] { "http://edmullen.net/test/rc.jpg",
 			"http://www.midiboutique.com/image/data/android-app-button.png",
@@ -58,30 +63,30 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 		enableUI();
 	}
 
-	@Receiver(actions = DownloadService.ACTION_DOWNLOAD_PROGRESS)
-	void onDownloadProgress(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) int position) {
-		adapter.updateItem(imageListView, position);
+	@Receiver(registerAt = RegisterAt.OnStartOnStop, actions = DownloadService.ACTION_DOWNLOAD_PROGRESS)
+	void onDownloadProgress(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) long position) {
+		adapter.setContent(dao.select());
 	}
 
-	@Receiver(actions = DownloadService.ACTION_DOWNLOAD_COMPLETE)
-	void onDownloadComplete(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) int position) {
-		adapter.updateItem(imageListView, position);
+	@Receiver(registerAt = RegisterAt.OnStartOnStop, actions = DownloadService.ACTION_DOWNLOAD_COMPLETE)
+	void onDownloadComplete(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) long id) {
+		adapter.setContent(dao.select());
 		Toast.makeText(MainActivity.this, R.string.download_complete, Toast.LENGTH_SHORT).show();
 	}
 
-	@Receiver(actions = DownloadService.ACTION_DOWNLOAD_ERROR)
-	void onDownloadError(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) int position) {
-		adapter.updateItem(imageListView, position);
+	@Receiver(registerAt = RegisterAt.OnStartOnStop, actions = DownloadService.ACTION_DOWNLOAD_ERROR)
+	void onDownloadError(@Receiver.Extra(DownloadService.DOWNLOAD_ID_KEY) long position) {
+		adapter.setContent(dao.select());
 		Toast.makeText(MainActivity.this, R.string.error_while_downloading, Toast.LENGTH_SHORT).show();
 	}
 
-	@Receiver(actions = DownloadService.ACTION_DOWNLOAD_CANCELLED)
+	@Receiver(registerAt = RegisterAt.OnStartOnStop, actions = DownloadService.ACTION_DOWNLOAD_CANCELLED)
 	void onDownloadCancelled() {
-		adapter.notifyDataSetChanged();
+		adapter.setContent(dao.select());
 	}
 
 	protected Class<? extends Service> getServiceClass() {
-		return DownloadService.class;
+		return DownloadService_.class;
 	}
 
 	@Override
@@ -103,8 +108,10 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 
 	@AfterViews
 	void init() {
-		urlEditText.setText(IMAGE_URLS[1]);
-		adapter.updateData(DB.getInstance().getDownloads());
+		urlEditText.setText(IMAGE_URLS[0]);
+		dao = new DownloadInfoManager(this);
+		adapter = new PreviewAdapter(this);
+		adapter.setContent(dao.select());
 		imageListView.setAdapter(adapter);
 	}
 
@@ -122,6 +129,7 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 			String url = urlEditText.getText().toString();
 			boolean result = downloadService.downloadImage(url);
 			if (result) {
+				adapter.setContent(dao.select());
 				adapter.notifyDataSetChanged();
 			} else {
 				Toast.makeText(this, R.string.service_is_stopped, Toast.LENGTH_SHORT).show();

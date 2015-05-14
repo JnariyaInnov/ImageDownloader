@@ -25,7 +25,6 @@ public final class PreviewAdapter_
     }
 
     private void init_() {
-        context = context_;
     }
 
     public void rebind(Context context) {

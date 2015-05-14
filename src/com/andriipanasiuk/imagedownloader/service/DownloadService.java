@@ -11,6 +11,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.androidannotations.annotations.Background;
+import org.androidannotations.annotations.EService;
+
 import android.app.Service;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -22,9 +25,10 @@ import android.provider.MediaStore.Images;
 import android.util.Log;
 
 import com.andriipanasiuk.imagedownloader.MainActivity;
-import com.andriipanasiuk.imagedownloader.model.DB;
 import com.andriipanasiuk.imagedownloader.model.DownloadInfo;
+import com.andriipanasiuk.imagedownloader.model.DownloadInfoManager;
 
+@EService
 public class DownloadService extends Service {
 
 	private static final int HEIGHT = 480;
@@ -43,6 +47,7 @@ public class DownloadService extends Service {
 	private final IBinder binder = new DownloadBinder();
 	private ExecutorService executor;
 	private Object stoppingLock = new Object();
+	private DownloadInfoManager dao;
 
 	public static final String ACTION_DOWNLOAD_PROGRESS = "download_progress";
 	public static final String ACTION_DOWNLOAD_COMPLETE = "download_complete";
@@ -64,6 +69,7 @@ public class DownloadService extends Service {
 	public void onCreate() {
 		super.onCreate();
 		executor = Executors.newFixedThreadPool(5);
+		dao = new DownloadInfoManager(this);
 		Log.d(MainActivity.LOG_TAG, "onCreate " + this);
 	}
 
@@ -101,19 +107,18 @@ public class DownloadService extends Service {
 	public void stop() {
 		state = State.STOPPING;
 		executor.shutdown();
-		new Thread(new Runnable() {
+		waitForTasks();
+	}
 
-			@Override
-			public void run() {
-				try {
-					executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-				} catch (InterruptedException e) {
-					// do nothing
-				}
-				stopSelf();
-				state = State.STOPPED;
-			}
-		}).start();
+	@Background
+	void waitForTasks() {
+		try {
+			executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			// do nothing
+		}
+		stopSelf();
+		state = State.STOPPED;
 	}
 
 	@Override
@@ -196,6 +201,7 @@ public class DownloadService extends Service {
 		public void run() {
 			try {
 				info.state = DownloadInfo.State.PROCESS;
+				dao.update(info);
 
 				File originalImageFile = downloadImageInternal(info.url, listener);
 				if (state == State.STOPPED || originalImageFile == null) {
@@ -208,6 +214,7 @@ public class DownloadService extends Service {
 
 				info.state = DownloadInfo.State.COMPLETE;
 				info.path = path;
+				dao.update(info);
 				synchronized (stoppingLock) {
 					listener.onComplete(path);
 				}
@@ -271,8 +278,8 @@ public class DownloadService extends Service {
 		DownloadInfo info = new DownloadInfo();
 		info.url = url;
 		info.state = DownloadInfo.State.WAITING;
-		int id = DB.getInstance().addDownload(info);
-		executor.execute(new DownloadRunnable(info, new DownloadInfoSender(info, id)));
+		dao.create(info);
+		executor.execute(new DownloadRunnable(info, new DownloadInfoSender(info)));
 		return true;
 	}
 
@@ -280,13 +287,11 @@ public class DownloadService extends Service {
 		private final Intent progressIntent;
 		private long lastUpdate;
 		private DownloadInfo info;
-		private int id;
 		private static final long UPDATE_INTERVAL = 400;
 
-		public DownloadInfoSender(DownloadInfo info, int id) {
+		public DownloadInfoSender(DownloadInfo info) {
 			progressIntent = new Intent(ACTION_DOWNLOAD_PROGRESS);
 			this.info = info;
-			this.id = id;
 		}
 
 		@Override
@@ -296,7 +301,8 @@ public class DownloadService extends Service {
 				info.progress = progress;
 				info.downloadedBytes = downloaded;
 				info.allBytes = size;
-				progressIntent.putExtra(DOWNLOAD_ID_KEY, id);
+				dao.update(info);
+				progressIntent.putExtra(DOWNLOAD_ID_KEY, info.id);
 				sendBroadcast(progressIntent);
 				lastUpdate = System.currentTimeMillis();
 			}
@@ -305,24 +311,25 @@ public class DownloadService extends Service {
 		@Override
 		public void onError() {
 			info.state = DownloadInfo.State.ERROR;
+			dao.update(info);
 			Intent errorIntent = new Intent(ACTION_DOWNLOAD_ERROR);
-			errorIntent.putExtra(DOWNLOAD_ID_KEY, id);
+			errorIntent.putExtra(DOWNLOAD_ID_KEY, info.id);
 			sendBroadcast(errorIntent);
 		}
 
 		@Override
 		public void onComplete(String path) {
 			Intent completeIntent = new Intent(ACTION_DOWNLOAD_COMPLETE);
-			completeIntent.putExtra(DOWNLOAD_ID_KEY, id);
+			completeIntent.putExtra(DOWNLOAD_ID_KEY, info.id);
 			sendBroadcast(completeIntent);
 		}
 
 		@Override
 		public void onCancelled() {
-			Log.d(MainActivity.LOG_TAG, "onCancelled");
 			info.state = DownloadInfo.State.CANCELLED;
+			dao.update(info);
 			Intent cancelledIntent = new Intent(ACTION_DOWNLOAD_CANCELLED);
-			cancelledIntent.putExtra(DOWNLOAD_ID_KEY, id);
+			cancelledIntent.putExtra(DOWNLOAD_ID_KEY, info.id);
 			sendBroadcast(cancelledIntent);
 		}
 	}

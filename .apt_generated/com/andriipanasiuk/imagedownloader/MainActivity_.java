@@ -21,7 +21,6 @@ import android.view.ViewGroup.LayoutParams;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
-import com.andriipanasiuk.imagedownloader.R.id;
 import com.andriipanasiuk.imagedownloader.R.layout;
 import com.andriipanasiuk.imagedownloader.model.PreviewAdapter_;
 import org.androidannotations.api.SdkVersionHelper;
@@ -43,44 +42,44 @@ public final class MainActivity_
 
         public void onReceive(Context context, Intent intent) {
             Bundle extras_ = ((intent.getExtras()!= null)?intent.getExtras():new Bundle());
-            int position = extras_.getInt(DOWNLOADED_ID_KEY_EXTRA);
+            long position = extras_.getLong(DOWNLOADED_ID_KEY_EXTRA);
             MainActivity_.this.onDownloadProgress(position);
         }
 
     }
     ;
     private final IntentFilter intentFilter2_ = new IntentFilter();
+    private final BroadcastReceiver onDownloadCancelledReceiver_ = new BroadcastReceiver() {
+
+
+        public void onReceive(Context context, Intent intent) {
+            MainActivity_.this.onDownloadCancelled();
+        }
+
+    }
+    ;
+    private final IntentFilter intentFilter3_ = new IntentFilter();
     private final BroadcastReceiver onDownloadCompleteReceiver_ = new BroadcastReceiver() {
 
         public final static String DOWNLOADED_ID_KEY_EXTRA = "downloaded_id_key";
 
         public void onReceive(Context context, Intent intent) {
             Bundle extras_ = ((intent.getExtras()!= null)?intent.getExtras():new Bundle());
-            int position = extras_.getInt(DOWNLOADED_ID_KEY_EXTRA);
-            MainActivity_.this.onDownloadComplete(position);
+            long id = extras_.getLong(DOWNLOADED_ID_KEY_EXTRA);
+            MainActivity_.this.onDownloadComplete(id);
         }
 
     }
     ;
-    private final IntentFilter intentFilter3_ = new IntentFilter();
+    private final IntentFilter intentFilter4_ = new IntentFilter();
     private final BroadcastReceiver onDownloadErrorReceiver_ = new BroadcastReceiver() {
 
         public final static String DOWNLOADED_ID_KEY_EXTRA = "downloaded_id_key";
 
         public void onReceive(Context context, Intent intent) {
             Bundle extras_ = ((intent.getExtras()!= null)?intent.getExtras():new Bundle());
-            int position = extras_.getInt(DOWNLOADED_ID_KEY_EXTRA);
+            long position = extras_.getLong(DOWNLOADED_ID_KEY_EXTRA);
             MainActivity_.this.onDownloadError(position);
-        }
-
-    }
-    ;
-    private final IntentFilter intentFilter4_ = new IntentFilter();
-    private final BroadcastReceiver onDownloadCancelledReceiver_ = new BroadcastReceiver() {
-
-
-        public void onReceive(Context context, Intent intent) {
-            MainActivity_.this.onDownloadCancelled();
         }
 
     }
@@ -100,13 +99,9 @@ public final class MainActivity_
         adapter = PreviewAdapter_.getInstance_(this);
         restoreSavedInstanceState_(savedInstanceState);
         intentFilter1_.addAction("download_progress");
-        this.registerReceiver(onDownloadProgressReceiver_, intentFilter1_);
-        intentFilter2_.addAction("download_complete");
-        this.registerReceiver(onDownloadCompleteReceiver_, intentFilter2_);
-        intentFilter3_.addAction("download_error");
-        this.registerReceiver(onDownloadErrorReceiver_, intentFilter3_);
-        intentFilter4_.addAction("download_cancelled");
-        this.registerReceiver(onDownloadCancelledReceiver_, intentFilter4_);
+        intentFilter2_.addAction("download_cancelled");
+        intentFilter3_.addAction("download_complete");
+        intentFilter4_.addAction("download_error");
     }
 
     @Override
@@ -145,9 +140,9 @@ public final class MainActivity_
 
     @Override
     public void onViewChanged(HasViews hasViews) {
-        urlEditText = ((EditText) hasViews.findViewById(id.download_url));
-        downloadButton = ((Button) hasViews.findViewById(id.download_button));
-        imageListView = ((ListView) hasViews.findViewById(id.image_list));
+        urlEditText = ((EditText) hasViews.findViewById(com.andriipanasiuk.imagedownloader.R.id.download_url));
+        imageListView = ((ListView) hasViews.findViewById(com.andriipanasiuk.imagedownloader.R.id.image_list));
+        downloadButton = ((Button) hasViews.findViewById(com.andriipanasiuk.imagedownloader.R.id.download_button));
         if (downloadButton!= null) {
             downloadButton.setOnClickListener(new OnClickListener() {
 
@@ -177,12 +172,21 @@ public final class MainActivity_
     }
 
     @Override
-    public void onDestroy() {
+    public void onStart() {
+        super.onStart();
+        this.registerReceiver(onDownloadProgressReceiver_, intentFilter1_);
+        this.registerReceiver(onDownloadCancelledReceiver_, intentFilter2_);
+        this.registerReceiver(onDownloadCompleteReceiver_, intentFilter3_);
+        this.registerReceiver(onDownloadErrorReceiver_, intentFilter4_);
+    }
+
+    @Override
+    public void onStop() {
         this.unregisterReceiver(onDownloadProgressReceiver_);
+        this.unregisterReceiver(onDownloadCancelledReceiver_);
         this.unregisterReceiver(onDownloadCompleteReceiver_);
         this.unregisterReceiver(onDownloadErrorReceiver_);
-        this.unregisterReceiver(onDownloadCancelledReceiver_);
-        super.onDestroy();
+        super.onStop();
     }
 
     public static class IntentBuilder_

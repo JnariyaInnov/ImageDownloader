@@ -1,70 +1,45 @@
 private package com.andriipanasiuk.imagedownloader.model;
 
-import java.util.List;
-
 import org.androidannotations.annotations.EBean;
-import org.androidannotations.annotations.RootContext;
+import org.droidparts.adapter.cursor.EntityCursorAdapter;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.ListView;
 
 import com.andriipanasiuk.imagedownloader.MainActivity;
 
 @EBean
-public class PreviewAdapter extends BaseAdapter {
+public class PreviewAdapter extends EntityCursorAdapter<DownloadInfo> {
 
-	private List<DownloadInfo> data;
-	@RootContext
-	Context context;
-
-	public PreviewAdapter(Context context) {
-		this.context = context;
+	public PreviewAdapter(Context ctx) {
+		super(ctx, DownloadInfo.class);
 	}
 
-	@Override
-	public int getCount() {
-		return data.size();
-	}
-
-	@Override
-	public DownloadInfo getItem(int position) {
-		return data.get(position);
-	}
-
-	@Override
-	public long getItemId(int position) {
-		return position;
-	}
-
-	public void updateData(List<DownloadInfo> data) {
-		this.data = data;
-		Log.d(MainActivity.LOG_TAG, "updateData " + data.size());
-		notifyDataSetChanged();
-	}
-
-	public void updateItem(ListView listView, int position) {
+	public void updateItem(ListView listView, long position, DownloadInfo info) {
 		int first = listView.getFirstVisiblePosition();
 		int last = listView.getLastVisiblePosition();
-		DownloadInfo info = getItem(position);
-		Log.d(MainActivity.LOG_TAG, first + " " + last + " " + position + " " + info.progress);
-		if (position >= first && position <= last) {
-			View convertView = listView.getChildAt(position - first);
-			((PreviewItem) convertView).updateItem(info);
+		for (int i = 0; i <= last - first; i++) {
+			View child = listView.getChildAt(i);
+			long id = (Long) child.getTag();
+			if (id == info.id) {
+				Log.d(MainActivity.LOG_TAG, first + " " + last + " " + (i + first) + " " + info.progress);
+				((PreviewItem) child).updateItem(info);
+			}
 		}
 	}
 
 	@Override
-	public View getView(int position, View convertView, ViewGroup parent) {
-		if (convertView == null) {
-			convertView = PreviewItem_.build(context);
-		}
-		DownloadInfo info = getItem(position);
+	public void bindView(Context arg0, View convertView, DownloadInfo info) {
 		((PreviewItem) convertView).updateItem(info);
-		return convertView;
+	}
+
+	@Override
+	public View newView(Context context, Cursor cursor, ViewGroup parent) {
+		return PreviewItem_.build(context);
 	}
 
 }
