@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.androidannotations.annotations.Background;
+import org.androidannotations.annotations.Bean;
 import org.androidannotations.annotations.EService;
 
 import android.app.Service;
@@ -47,7 +48,8 @@ public class DownloadService extends Service {
 	private final IBinder binder = new DownloadBinder();
 	private ExecutorService executor;
 	private Object stoppingLock = new Object();
-	private DownloadInfoManager dao;
+	@Bean
+	DownloadInfoManager dao;
 
 	public static final String ACTION_DOWNLOAD_PROGRESS = "download_progress";
 	public static final String ACTION_DOWNLOAD_COMPLETE = "download_complete";
@@ -69,7 +71,6 @@ public class DownloadService extends Service {
 	public void onCreate() {
 		super.onCreate();
 		executor = Executors.newFixedThreadPool(5);
-		dao = new DownloadInfoManager(this);
 		Log.d(MainActivity.LOG_TAG, "onCreate " + this);
 	}
 

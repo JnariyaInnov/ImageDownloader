@@ -34,6 +34,7 @@ public class DBHelper extends AbstractDBOpenHelper {
 	@Override
 	public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 		Log.i(DBHelper.class.getName(), "onUpgrade");
+		dropTables(db);
 		onCreate(db);
 	}
 

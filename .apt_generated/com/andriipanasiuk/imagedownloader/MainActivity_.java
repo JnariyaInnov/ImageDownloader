@@ -22,6 +22,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import com.andriipanasiuk.imagedownloader.R.layout;
+import com.andriipanasiuk.imagedownloader.model.DownloadInfoManager_;
 import com.andriipanasiuk.imagedownloader.model.PreviewAdapter_;
 import org.androidannotations.api.SdkVersionHelper;
 import org.androidannotations.api.builder.ActivityIntentBuilder;
@@ -36,29 +37,19 @@ public final class MainActivity_
 
     private final OnViewChangedNotifier onViewChangedNotifier_ = new OnViewChangedNotifier();
     private final IntentFilter intentFilter1_ = new IntentFilter();
-    private final BroadcastReceiver onDownloadProgressReceiver_ = new BroadcastReceiver() {
+    private final BroadcastReceiver onDownloadErrorReceiver_ = new BroadcastReceiver() {
 
         public final static String DOWNLOADED_ID_KEY_EXTRA = "downloaded_id_key";
 
         public void onReceive(Context context, Intent intent) {
             Bundle extras_ = ((intent.getExtras()!= null)?intent.getExtras():new Bundle());
             long position = extras_.getLong(DOWNLOADED_ID_KEY_EXTRA);
-            MainActivity_.this.onDownloadProgress(position);
+            MainActivity_.this.onDownloadError(position);
         }
 
     }
     ;
     private final IntentFilter intentFilter2_ = new IntentFilter();
-    private final BroadcastReceiver onDownloadCancelledReceiver_ = new BroadcastReceiver() {
-
-
-        public void onReceive(Context context, Intent intent) {
-            MainActivity_.this.onDownloadCancelled();
-        }
-
-    }
-    ;
-    private final IntentFilter intentFilter3_ = new IntentFilter();
     private final BroadcastReceiver onDownloadCompleteReceiver_ = new BroadcastReceiver() {
 
         public final static String DOWNLOADED_ID_KEY_EXTRA = "downloaded_id_key";
@@ -71,15 +62,25 @@ public final class MainActivity_
 
     }
     ;
-    private final IntentFilter intentFilter4_ = new IntentFilter();
-    private final BroadcastReceiver onDownloadErrorReceiver_ = new BroadcastReceiver() {
+    private final IntentFilter intentFilter3_ = new IntentFilter();
+    private final BroadcastReceiver onDownloadProgressReceiver_ = new BroadcastReceiver() {
 
         public final static String DOWNLOADED_ID_KEY_EXTRA = "downloaded_id_key";
 
         public void onReceive(Context context, Intent intent) {
             Bundle extras_ = ((intent.getExtras()!= null)?intent.getExtras():new Bundle());
             long position = extras_.getLong(DOWNLOADED_ID_KEY_EXTRA);
-            MainActivity_.this.onDownloadError(position);
+            MainActivity_.this.onDownloadProgress(position);
+        }
+
+    }
+    ;
+    private final IntentFilter intentFilter4_ = new IntentFilter();
+    private final BroadcastReceiver onDownloadCancelledReceiver_ = new BroadcastReceiver() {
+
+
+        public void onReceive(Context context, Intent intent) {
+            MainActivity_.this.onDownloadCancelled();
         }
 
     }
@@ -97,11 +98,12 @@ public final class MainActivity_
     private void init_(Bundle savedInstanceState) {
         OnViewChangedNotifier.registerOnViewChangedListener(this);
         adapter = PreviewAdapter_.getInstance_(this);
+        dao = DownloadInfoManager_.getInstance_(this);
         restoreSavedInstanceState_(savedInstanceState);
-        intentFilter1_.addAction("download_progress");
-        intentFilter2_.addAction("download_cancelled");
-        intentFilter3_.addAction("download_complete");
-        intentFilter4_.addAction("download_error");
+        intentFilter1_.addAction("download_error");
+        intentFilter2_.addAction("download_complete");
+        intentFilter3_.addAction("download_progress");
+        intentFilter4_.addAction("download_cancelled");
     }
 
     @Override
@@ -174,18 +176,18 @@ public final class MainActivity_
     @Override
     public void onStart() {
         super.onStart();
-        this.registerReceiver(onDownloadProgressReceiver_, intentFilter1_);
-        this.registerReceiver(onDownloadCancelledReceiver_, intentFilter2_);
-        this.registerReceiver(onDownloadCompleteReceiver_, intentFilter3_);
-        this.registerReceiver(onDownloadErrorReceiver_, intentFilter4_);
+        this.registerReceiver(onDownloadErrorReceiver_, intentFilter1_);
+        this.registerReceiver(onDownloadCompleteReceiver_, intentFilter2_);
+        this.registerReceiver(onDownloadProgressReceiver_, intentFilter3_);
+        this.registerReceiver(onDownloadCancelledReceiver_, intentFilter4_);
     }
 
     @Override
     public void onStop() {
+        this.unregisterReceiver(onDownloadErrorReceiver_);
+        this.unregisterReceiver(onDownloadCompleteReceiver_);
         this.unregisterReceiver(onDownloadProgressReceiver_);
         this.unregisterReceiver(onDownloadCancelledReceiver_);
-        this.unregisterReceiver(onDownloadCompleteReceiver_);
-        this.unregisterReceiver(onDownloadErrorReceiver_);
         super.onStop();
     }
 

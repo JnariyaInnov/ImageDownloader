@@ -7,6 +7,7 @@
 package com.andriipanasiuk.imagedownloader.service;
 
 import android.content.Context;
+import com.andriipanasiuk.imagedownloader.model.DownloadInfoManager_;
 import org.androidannotations.api.BackgroundExecutor;
 import org.androidannotations.api.builder.ServiceIntentBuilder;
 
@@ -17,6 +18,16 @@ public final class DownloadService_
 
     public static DownloadService_.IntentBuilder_ intent(Context context) {
         return new DownloadService_.IntentBuilder_(context);
+    }
+
+    private void init_() {
+        dao = DownloadInfoManager_.getInstance_(this);
+    }
+
+    @Override
+    public void onCreate() {
+        init_();
+        super.onCreate();
     }
 
     @Override

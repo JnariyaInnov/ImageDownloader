@@ -7,7 +7,6 @@ import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.Receiver;
 import org.androidannotations.annotations.Receiver.RegisterAt;
 import org.androidannotations.annotations.ViewById;
-import org.droidparts.annotation.inject.InjectDependency;
 
 import android.app.Service;
 import android.content.ComponentName;
@@ -41,7 +40,7 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 	EditText urlEditText;
 	@Bean
 	PreviewAdapter adapter;
-	@InjectDependency
+	@Bean
 	DownloadInfoManager dao;
 
 	private static final String[] IMAGE_URLS = new String[] { "http://edmullen.net/test/rc.jpg",
@@ -103,14 +102,11 @@ public class MainActivity extends ServiceActivity implements ServiceConnection {
 		super.onCreate(savedInstanceState);
 
 		Picasso.with(this).setLoggingEnabled(true);
-
 	}
 
 	@AfterViews
 	void init() {
 		urlEditText.setText(IMAGE_URLS[0]);
-		dao = new DownloadInfoManager(this);
-		adapter = new PreviewAdapter(this);
 		adapter.setContent(dao.select());
 		imageListView.setAdapter(adapter);
 	}
